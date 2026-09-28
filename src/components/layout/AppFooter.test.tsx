@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { formatBuildLabel } from '@/lib/buildInfo'
 import { formatStorageSize, notifyStorageChange } from '@/lib/db/storage'
 
 const MB = 1024 * 1024
@@ -42,15 +43,26 @@ describe('AppFooter', () => {
     stubEstimate(() => Promise.resolve({ usage: 850 * MB, quota: 1000 * MB }))
     render(<AppFooter />)
     expect(
-      await screen.findByText(/Espace bientôt plein — exportez puis supprimez d’anciennes visites/),
+      await screen.findByText(
+        /Espace bientôt plein — générez les rapports puis supprimez d’anciennes visites/,
+      ),
     ).toBeInTheDocument()
     expect(screen.getByRole('contentinfo').firstElementChild).toHaveClass('text-warning')
   })
 
-  it('renders nothing when the API is unavailable', async () => {
+  it('shows only the version when the storage API is unavailable', async () => {
     stubEstimate(undefined)
-    const { container } = render(<AppFooter />)
+    render(<AppFooter />)
     await new Promise((resolve) => setTimeout(resolve, 10))
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByText(/utilisés dans ce navigateur/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('app-version')).toHaveTextContent(
+      /^v1\.0\.0 — build du \d{2}\/\d{2}\/\d{4}$/,
+    )
+  })
+
+  it('formats the build label', () => {
+    expect(formatBuildLabel('1.0.0', '2026-09-28T08:00:00.000Z')).toBe(
+      'v1.0.0 — build du 28/09/2026',
+    )
   })
 })

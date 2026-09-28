@@ -170,7 +170,7 @@ export function InsurancesSection({
       {insurances.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Aucun contrat renseigné.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[56rem] text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">

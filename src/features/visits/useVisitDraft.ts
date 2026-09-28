@@ -144,7 +144,7 @@ export function useVisitDraft(id: string): VisitDraft {
         error instanceof StorageQuotaError || error instanceof StorageUnavailableError
       toast.error('Erreur d’enregistrement', {
         description: isStorageError
-          ? `${toUserMessage(error)} Pensez à exporter la visite (export disponible prochainement).`
+          ? `${toUserMessage(error)} Générez dès que possible le rapport Word de cette visite : c’est sa seule copie durable.`
           : toUserMessage(error),
         duration: error instanceof AppError ? 10_000 : undefined,
       })

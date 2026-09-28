@@ -15,6 +15,7 @@ import { CreateVisitDialog } from './CreateVisitDialog'
 import { useVisitSummaries } from './useVisits'
 import { VisitActionDialogs, type VisitAction } from './VisitActionDialogs'
 import { useReportDates } from '@/features/report/reportMeta'
+import { StorageNotice } from './StorageNotice'
 import { VisitCard } from './VisitCard'
 import {
   DEFAULT_VISIT_FILTERS,
@@ -77,6 +78,8 @@ export function VisitListPage() {
           Nouvelle visite
         </Button>
       </div>
+
+      <StorageNotice />
 
       {hasVisits && (
         <div className="flex flex-wrap items-center gap-3" role="search">

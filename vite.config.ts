@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -38,10 +39,20 @@ function offlineCsp(): Plugin {
   }
 }
 
+const { version } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { version: string }
+
 // The whole app ships as ONE self-contained dist/index.html opened via file://.
 // See docs/DECISIONS.md.
 export default defineConfig({
   base: './',
+  // Version of package.json and build date, shown in the footer ("v1.0.0 — build du …").
+  define: {
+    // APP_VERSION overrides it (e2e test of an update between two builds).
+    __APP_VERSION__: JSON.stringify(process.env.APP_VERSION ?? version),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [react(), tailwindcss(), viteSingleFile({ removeViteModuleLoader: true }), offlineCsp()],
   resolve: {
     alias: {

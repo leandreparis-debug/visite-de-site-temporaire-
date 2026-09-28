@@ -81,7 +81,7 @@ export class ValidationError extends AppError {
 export class StorageQuotaError extends AppError {
   constructor(options?: ErrorOptions) {
     super(
-      'Espace de stockage du navigateur insuffisant. Exportez puis supprimez d’anciennes visites.',
+      'Espace de stockage du navigateur insuffisant. Générez les rapports Word puis supprimez d’anciennes visites.',
       'Storage quota exceeded',
       options,
     )

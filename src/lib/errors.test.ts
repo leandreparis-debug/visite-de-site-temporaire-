@@ -11,7 +11,7 @@ import {
 } from '@/lib/errors'
 
 const QUOTA_MESSAGE =
-  'Espace de stockage du navigateur insuffisant. Exportez puis supprimez d’anciennes visites.'
+  'Espace de stockage du navigateur insuffisant. Générez les rapports Word puis supprimez d’anciennes visites.'
 
 describe('errors', () => {
   it('maps a QuotaExceededError DOMException to StorageQuotaError', () => {

@@ -304,8 +304,8 @@ export function CostsSection({
       {visit.costs.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Aucun coût renseigné.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[60rem] text-sm">
+        <div className="relative overflow-x-auto">
+          <table className="w-full min-w-[66rem] text-sm">
             <caption className="sr-only">
               Coûts groupés par {GROUP_BY_NAMES[groupBy]}, avec sous-totaux et totaux par stade
             </caption>

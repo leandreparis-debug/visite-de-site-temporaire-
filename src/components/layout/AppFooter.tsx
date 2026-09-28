@@ -6,14 +6,15 @@ import {
   onStorageChange,
   type StorageEstimate,
 } from '@/lib/db/storage'
+import { formatBuildLabel } from '@/lib/buildInfo'
 import { cn } from '@/lib/utils'
 
 /** Usage ratio above which the user is asked to free some space. */
 export const STORAGE_WARNING_PERCENT = 80
 
 /**
- * Footer showing the browser storage used by the tool. Refreshed on mount and
- * after each deletion. Renders nothing if the browser cannot tell.
+ * Footer: browser storage used by the tool (refreshed on mount and after each
+ * deletion; hidden if the browser cannot tell) and version of the tool.
  */
 export function AppFooter() {
   const [estimate, setEstimate] = useState<StorageEstimate | null>(null)
@@ -33,8 +34,7 @@ export function AppFooter() {
     }
   }, [])
 
-  if (!estimate) return null
-  const almostFull = estimate.percent > STORAGE_WARNING_PERCENT
+  const almostFull = estimate !== null && estimate.percent > STORAGE_WARNING_PERCENT
 
   return (
     <footer className="border-t bg-surface/60">
@@ -44,15 +44,24 @@ export function AppFooter() {
           almostFull ? 'font-medium text-warning' : 'text-muted-foreground',
         )}
       >
-        {almostFull ? (
-          <AlertTriangle className="size-3.5" aria-hidden="true" />
-        ) : (
-          <HardDrive className="size-3.5" aria-hidden="true" />
+        {estimate && (
+          <>
+            {almostFull ? (
+              <AlertTriangle className="size-3.5" aria-hidden="true" />
+            ) : (
+              <HardDrive className="size-3.5" aria-hidden="true" />
+            )}
+            <span>{formatStorageSize(estimate.usedBytes)} utilisés dans ce navigateur</span>
+            {almostFull && (
+              <span>
+                — Espace bientôt plein — générez les rapports puis supprimez d’anciennes visites
+              </span>
+            )}
+          </>
         )}
-        <span>{formatStorageSize(estimate.usedBytes)} utilisés dans ce navigateur</span>
-        {almostFull && (
-          <span>— Espace bientôt plein — exportez puis supprimez d’anciennes visites</span>
-        )}
+        <span className="ml-auto font-normal text-muted-foreground" data-testid="app-version">
+          {formatBuildLabel()}
+        </span>
       </div>
     </footer>
   )

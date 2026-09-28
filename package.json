@@ -1,7 +1,7 @@
 {
   "name": "cp-compte-rendu",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "engines": {
     "node": ">=22.22.2"
@@ -17,7 +17,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
-    "check:single": "node scripts/check-single-file.mjs"
+    "check:single": "node scripts/check-single-file.mjs",
+    "guide": "node scripts/generate-guide.ts",
+    "screenshots": "npm run build && UPDATE_SCREENSHOTS=1 playwright test audit.spec"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -35,6 +37,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",

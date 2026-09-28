@@ -1,4 +1,4 @@
-import { Check, Loader2, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Check, Loader2, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { navigate } from '@/app/router'
@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { forgetReportGenerated, useReportDates } from '@/features/report/reportMeta'
 import { useLiveResult } from '@/lib/db/useLiveResult'
 import { notifyError, pluralize } from '@/lib/notify'
 import { deleteVisit, duplicateVisit, getVisitMediaCounts } from './visitsRepo'
@@ -167,6 +168,7 @@ function DeleteVisitDialog({
   onDeleted,
 }: DialogProps & { onDeleted?: () => void }) {
   const [busy, setBusy] = useState(false)
+  const reportDates = useReportDates()
 
   const confirm = async () => {
     if (!visit) return
@@ -174,6 +176,7 @@ function DeleteVisitDialog({
     try {
       if (beforeAction && !(await beforeAction('delete'))) return
       await deleteVisit(visit.id)
+      await forgetReportGenerated(visit.id)
       onClose()
       toast.success('Visite supprimée')
       onDeleted?.()
@@ -203,8 +206,15 @@ function DeleteVisitDialog({
                 {visit && <MediaCounts visitId={visit.id} />}.
               </p>
               <p className="font-medium text-danger">
-                Cette action est définitive. Pensez à exporter la visite avant.
+                Cette action est définitive. Générez le rapport Word avant si vous souhaitez
+                conserver une trace.
               </p>
+              {visit && !reportDates[visit.id] && (
+                <p className="flex items-center gap-1.5 font-medium text-warning">
+                  <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+                  Aucun rapport n’a été généré pour cette visite.
+                </p>
+              )}
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

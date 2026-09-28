@@ -1,7 +1,8 @@
 import { BrandLogo } from '@/components/brand/BrandLogo'
 import { Separator } from '@/components/ui/separator'
+import { HelpButton } from '@/features/help/HelpDialog'
 
-/** Sticky application header: logo, title and local-storage notice. */
+/** Sticky application header: logo, title, local-storage notice and help. */
 export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b bg-surface/95 backdrop-blur">
@@ -16,6 +17,7 @@ export function AppHeader() {
             Outil temporaire — données stockées sur ce poste
           </p>
         </div>
+        <HelpButton />
       </div>
     </header>
   )

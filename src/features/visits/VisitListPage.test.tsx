@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { STORAGE_NOTICE_TEXT } from '@/features/visits/StorageNotice'
 import { VisitListPage } from '@/features/visits/VisitListPage'
 import { addPhoto } from '@/features/photos/photosRepo'
 import { makePhotoInput } from '@/test/fixtures'
@@ -136,7 +137,10 @@ describe('VisitListPage', () => {
     const dialog = screen.getByRole('alertdialog', { name: 'Supprimer la visite ?' })
     expect(await within(dialog).findByText(/ainsi que 1 photo/)).toBeInTheDocument()
     expect(
-      within(dialog).getByText('Cette action est définitive. Pensez à exporter la visite avant.'),
+      within(dialog).getByText(/Cette action est définitive. Générez le rapport Word avant/),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('Aucun rapport n’a été généré pour cette visite.'),
     ).toBeInTheDocument()
 
     await user.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
@@ -174,5 +178,22 @@ describe('VisitListPage', () => {
     expect(await screen.findByText('Impossible d’afficher les visites')).toBeInTheDocument()
     expect(screen.getByText(/stockage local du navigateur est indisponible/)).toBeInTheDocument()
     vi.restoreAllMocks()
+  })
+})
+
+describe('VisitListPage — storage notice', () => {
+  it('explains where the visits are stored, and stays closed once closed', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<VisitListPage />)
+    const notice = await screen.findByRole('note', { name: 'Où sont enregistrées les visites' })
+    expect(notice).toHaveTextContent(STORAGE_NOTICE_TEXT)
+    await user.click(within(notice).getByRole('button', { name: 'Fermer ce message' }))
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    })
+    unmount()
+    render(<VisitListPage />)
+    await screen.findByText('Aucune visite pour le moment')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
   })
 })
