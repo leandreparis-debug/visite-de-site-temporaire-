@@ -68,6 +68,11 @@ export function listVisitSummaries(): Promise<VisitSummary[]> {
   )
 }
 
+/** Every visit, normalized (used for field suggestions; no blob is loaded). */
+export function listVisits(): Promise<Visit[]> {
+  return withStorageErrors(async () => (await db.visits.toArray()).map(normalizeVisit))
+}
+
 /**
  * Loads a full visit.
  * @throws {NotFoundError} if no visit has this id.

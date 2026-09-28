@@ -41,6 +41,8 @@ erDiagram
         string startTime "HH:mm, optionnel"
         object site "name, code?, address?, city?"
         int nextPinNumber "compteur de repères, >= 1"
+        string author "rédacteur, optionnel"
+        string purpose "objet, optionnel, 1000 car."
     }
     PARTICIPANT {
         string id
@@ -153,6 +155,18 @@ erDiagram
 - **Dates métier** : `YYYY-MM-DD` (date calendaire, sans fuseau). **Horodatages** (`createdAt`, `updatedAt`, `takenAt`) : ISO 8601 complet.
 - **Identifiants** : UUID v4 (`createId()` dans `src/lib/id.ts`).
 - **`schemaVersion`** : `1` sur chaque visite, pour les migrations et l'import (étape 9).
+
+### Champs de la visite ajoutés à l'étape 4
+
+- `author?` (120 caractères max.) : **rédacteur** du compte rendu. Les suggestions comprennent Arnaud Montigny, Emre Akagunduz, Jean-Christophe Bains, ainsi que les rédacteurs des autres visites.
+- `purpose?` (1 000 caractères max.) : **objet** de la visite ou de la réunion.
+- Les deux sont optionnels : absents des visites plus anciennes, ils valent « non renseigné » (`undefined`). `normalizeVisit` n'a rien à ajouter, et aucune nouvelle version Dexie n'est nécessaire.
+- Règle générale des champs texte optionnels : les espaces de bord sont supprimés, et une chaîne vide **retire la clé** au lieu de stocker `""`.
+
+### Ordre et affichage
+
+- Les **sections de notes** sont stockées avec `order` = 0..n-1, recalculé à chaque ajout, suppression ou déplacement. `content` est du texte brut ; une ligne commençant par « - » deviendra une puce dans le rapport (étape 10).
+- Les **points d'attention** sont stockés dans l'ordre de saisie. Le tri affiché (non terminés d'abord, puis priorité décroissante, puis échéance croissante) et le badge « En retard » sont calculés à l'affichage (`attentionPointView.ts`), sans modifier les données.
 
 ### Binaires hors de la visite
 

@@ -28,9 +28,10 @@ describe('VisitEditorPage', () => {
   it('shows the visit header', async () => {
     await openEditor()
     expect(screen.getByRole('link', { name: 'Visites' })).toHaveAttribute('href', '#/')
-    expect(screen.getByText('Entrepôt Lyon')).toBeInTheDocument()
-    expect(screen.getByText('28 septembre 2026')).toBeInTheDocument()
-    expect(screen.getByText('Visite technique')).toBeInTheDocument()
+    const header = screen.getByRole('heading', { level: 2, name: 'Visite Lyon' }).closest('header')!
+    expect(within(header).getByText('Entrepôt Lyon')).toBeInTheDocument()
+    expect(within(header).getByText('28 septembre 2026')).toBeInTheDocument()
+    expect(within(header).getByText('Visite technique')).toBeInTheDocument()
   })
 
   it('edits the title inline and saves it', async () => {

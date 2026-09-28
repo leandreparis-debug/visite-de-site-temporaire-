@@ -17,6 +17,22 @@ export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 /** A change to apply to the visit. Must be pure: it may be re-applied on fresher data. */
 export type VisitUpdater = (draft: Visit) => Visit
 
+export interface UpdateOptions {
+  /**
+   * Coalescing key for "set this field to this value" updates (e.g.
+   * `site.code`). When the previous pending update has the same key, it is
+   * replaced instead of queued: typing 200 characters keeps one pending
+   * update instead of 200. Only use it when the new updater fully supersedes
+   * the previous one.
+   */
+  coalesceKey?: string
+}
+
+interface PendingUpdate {
+  run: VisitUpdater
+  key?: string
+}
+
 /** Delay between the last change and the automatic save. */
 export const AUTOSAVE_DELAY_MS = 800
 
@@ -26,7 +42,7 @@ export interface VisitDraft {
   /** `true` until the visit is first loaded. */
   isLoading: boolean
   /** Applies a change locally right away; saved 800 ms after the last change. */
-  update: (updater: VisitUpdater) => void
+  update: (updater: VisitUpdater, options?: UpdateOptions) => void
   status: SaveStatus
   /** Load error (`NotFoundError`…) or last save error. */
   error: unknown
@@ -46,8 +62,8 @@ function newest(a: Visit | undefined, b: Visit | undefined): Visit | undefined {
   return b.updatedAt > a.updatedAt ? b : a
 }
 
-function applyAll(base: Visit, updaters: readonly VisitUpdater[]): Visit {
-  return updaters.reduce((visit, updater) => updater(visit), structuredClone(base))
+function applyAll(base: Visit, updates: readonly PendingUpdate[]): Visit {
+  return updates.reduce((visit, update) => update.run(visit), structuredClone(base))
 }
 
 /**
@@ -77,13 +93,15 @@ function applyAll(base: Visit, updaters: readonly VisitUpdater[]): Visit {
 export function useVisitDraft(id: string): VisitDraft {
   const live = useVisit(id)
   const [lastSaved, setLastSaved] = useState<Visit | undefined>(undefined)
-  const [pending, setPending] = useState<readonly VisitUpdater[]>([])
+  const [pending, setPending] = useState<readonly PendingUpdate[]>([])
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [saveError, setSaveError] = useState<unknown>(undefined)
 
   // Mirrors for callbacks / event listeners (never read during render).
-  const pendingRef = useRef<readonly VisitUpdater[]>([])
+  const pendingRef = useRef<readonly PendingUpdate[]>([])
   const savingRef = useRef(false)
+  /** Number of pending updates currently being written (never coalesced). */
+  const inFlightRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const chainRef = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -104,10 +122,11 @@ export function useVisitDraft(id: string): VisitDraft {
     const batch = pendingRef.current
     if (batch.length === 0) return true
     savingRef.current = true
+    inFlightRef.current = batch.length
     setStatus('saving')
     try {
       const saved = await updateVisit(id, (current) =>
-        batch.reduce((v, updater) => updater(v), current),
+        batch.reduce((v, update) => update.run(v), current),
       )
       // Updaters added while saving stay pending.
       pendingRef.current = pendingRef.current.slice(batch.length)
@@ -132,6 +151,7 @@ export function useVisitDraft(id: string): VisitDraft {
       return false
     } finally {
       savingRef.current = false
+      inFlightRef.current = 0
     }
   }, [id, clearTimer])
 
@@ -159,8 +179,16 @@ export function useVisitDraft(id: string): VisitDraft {
   }, [flush])
 
   const update = useCallback(
-    (updater: VisitUpdater) => {
-      pendingRef.current = [...pendingRef.current, updater]
+    (updater: VisitUpdater, options: UpdateOptions = {}) => {
+      const queue = pendingRef.current
+      const last = queue[queue.length - 1]
+      const entry: PendingUpdate = { run: updater, key: options.coalesceKey }
+      pendingRef.current =
+        options.coalesceKey !== undefined &&
+        last?.key === options.coalesceKey &&
+        queue.length > inFlightRef.current
+          ? [...queue.slice(0, -1), entry]
+          : [...queue, entry]
       setPending(pendingRef.current)
       setStatus('dirty')
       clearTimer()

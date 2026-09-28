@@ -51,7 +51,11 @@ Brique commune à tous les écrans d'édition. `useVisitDraft(id)` retourne `{ d
 - Avant une duplication, l'écran d'édition appelle `flush()` pour que la copie contienne les dernières modifications. Avant une suppression, il appelle `discard()` : les modifications en attente sont abandonnées puisque la visite disparaît.
 - `updatedAt` est géré par le repository, pas par le hook.
 
-Contrainte pour les étapes suivantes : un `update` doit être une **fonction pure** de la visite reçue (`(v) => ({ ...v, title })`), car elle peut être rejouée sur une version plus récente.
+Contrainte pour les étapes suivantes : un `update` doit être une **fonction pure** de la visite reçue (`(v) => ({ ...v, title })`), car elle peut être rejouée sur une version plus récente. Voir « Règle des fonctions pures » ci-dessous.
+
+**Coalescence** : `update(fn, { coalesceKey: 'site.city' })` remplace la mise à jour en attente précédente si elle porte la même clé, au lieu d'en ajouter une nouvelle. Pendant la saisie d'un champ, la file garde ainsi une seule entrée par champ au lieu d'une par frappe. À réserver aux mises à jour « mettre ce champ à cette valeur », où la nouvelle remplace entièrement l'ancienne. Une mise à jour déjà en cours d'écriture n'est jamais remplacée.
+
+**Champs liés au brouillon** (`src/components/form/DraftFields.tsx`) : pendant la saisie, `DraftInput` et `DraftTextarea` affichent une **copie locale** de ce qui est tapé et transmettent chaque changement au brouillon. À la perte du focus, ils réaffichent la valeur du brouillon. Le nettoyage des espaces ou le refus d'une valeur ne fait donc jamais sauter le curseur. Un champ obligatoire vidé (nom du site, nom d'un participant, titre de section) affiche une erreur, n'envoie rien, puis retrouve sa valeur précédente à la perte du focus : aucun état invalide n'est envoyé à l'enregistrement.
 
 ```mermaid
 sequenceDiagram
@@ -81,8 +85,36 @@ sequenceDiagram
     end
 ```
 
+## Règle des fonctions pures
+
+Toute fonction passée à `update` peut être exécutée **plusieurs fois** : au rendu (brouillon affiché = base + modifications en attente), puis à chaque tentative de sauvegarde, où elle est **rejouée** sur la version en base. Elle doit donc être **pure et déterministe** : même visite en entrée, même résultat, sans effet de bord ni mutation.
+
+- **Aucun `createId()`, `Date.now()`, `new Date()`, `todayIso()` ou `Math.random()` dans un updater.** Les identifiants et les dates sont calculés **dans le gestionnaire d'événement**, puis passés en argument.
+- La logique de modification vit dans des modules d'opérations purs et testés (`src/features/*/…Ops.ts`). Les composants se contentent d'appeler `update((v) => addParticipant(v, participant))`.
+- Ne jamais muter la visite reçue : retourner de nouveaux objets. Les tests appliquent chaque opération à une visite **profondément gelée** (`deepFreeze`).
+- ESLint interdit, dans les fichiers `*Ops.ts`, l'import de `@/lib/id`, de `todayIso` et `nowIso`, ainsi que `Date.now()`, `new Date()`, `Math.random()` et `crypto.*`.
+
+✅ Correct : l'identifiant est généré une seule fois, dans le gestionnaire.
+
+```ts
+const onAdd = () => {
+  const participant = { id: createId(), name: entry.name } // ici, une seule fois
+  update((v) => addParticipant(v, participant))
+}
+```
+
+❌ Incorrect : l'identifiant est généré dans l'updater.
+
+```ts
+update((v) => addParticipant(v, { id: createId(), name: entry.name }))
+```
+
+Ici, l'updater est exécuté une fois pour l'affichage, puis de nouveau à la sauvegarde. Chaque exécution produit un nouvel identifiant : le participant affiché n'a pas le même id que celui enregistré. Les actions suivantes (modifier, supprimer, « Annuler ») visent alors un id qui n'existe pas en base. En cas d'erreur puis de nouvelle tentative, un nouvel id serait encore généré. Même problème avec une date : « aujourd'hui » calculé dans l'updater changerait si la sauvegarde avait lieu après minuit.
+
+Les valeurs d'affichage qui dépendent du temps (« En retard », « Modifiée il y a… ») sont calculées **au rendu** (`useToday`, `useNow`), jamais stockées par un updater.
+
 ## Composants d'interface
 
-Les composants sont ceux de shadcn/ui (même API, mêmes styles). Seuls `Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` sont réimplémentés sur les **éléments natifs** du navigateur (`<dialog>`, attribut `popover`, positionnement par ancre CSS, motif ARIA des onglets) plutôt que sur Radix. Voir `DECISIONS.md`, n° 13. Le tri utilise un `<select>` natif.
+Les composants sont ceux de shadcn/ui (même API, mêmes styles). Seuls `Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` sont réimplémentés sur les **éléments natifs** du navigateur (`<dialog>`, attribut `popover`, positionnement par ancre CSS, motif ARIA des onglets) plutôt que sur Radix. Voir `DECISIONS.md`, n° 13. Le tri utilise un `<select>` natif. Les suggestions de saisie utilisent `<datalist>`, et les zones de texte s'agrandissent avec leur contenu grâce à `field-sizing: content` (sans JavaScript).
 
 En test (jsdom), `src/test/domPolyfills.ts` simule `showModal()` et l'API Popover.

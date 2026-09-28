@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 3)** : gestion des visites (liste, recherche, création, duplication, suppression, écran d'édition avec enregistrement automatique). Les onglets de contenu (notes, photos, plan, DO…) arriveront aux étapes suivantes.
+**État actuel (étape 4)** : gestion des visites (liste, recherche, création, duplication, suppression), enregistrement automatique, et onglets « Informations générales » et « Notes » opérationnels. Les onglets photos, plan, DO, projets et rapport arriveront aux étapes suivantes.
 
 ---
 
@@ -35,6 +35,19 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
 5. **Revenir à la liste** : lien **« ← Visites »**. La liste permet de rechercher par titre ou site (les accents et majuscules sont ignorés), de filtrer par type et de trier.
 6. **Reprendre le suivi d'une visite** : menu **« ⋯ »** de la visite, puis **« Dupliquer »**. Le dialogue indique ce qui est repris (site, participants, sinistres DO, assurances, projets, coûts, points d'attention non terminés, plans) et ce qui ne l'est pas (notes, photos, repères). La copie, datée du jour, s'ouvre.
 7. **Supprimer une visite** : menu **« ⋯ »**, puis **« Supprimer »**. La suppression est **définitive** : pensez à exporter la visite avant (export disponible à une étape ultérieure).
+
+### Informations générales
+
+- **Visite** : type, date, heure de début, rédacteur et objet. Le champ Rédacteur propose les noms habituels et ceux déjà saisis dans d'autres visites (flèche ↓ ou début de saisie).
+- **Site** : nom (obligatoire), code, adresse, ville. Le nom et la ville proposent les valeurs déjà utilisées. Si le nom est vidé par erreur, un message s'affiche et l'ancien nom revient en quittant le champ.
+- **Participants, saisie rapide au clavier** : dans la ligne du haut, taper le **nom**, `Tab`, la **fonction**, `Tab`, la **société**, puis `Entrée`. Le participant est ajouté (présent par défaut) et le curseur revient sur Nom pour le suivant. Dans le tableau, tout se modifie directement : case « Présent », flèches pour réordonner, corbeille pour supprimer. Après une suppression, le bouton **« Annuler »** du message la rétablit pendant 5 secondes.
+
+### Notes
+
+- **Trames** : « Insérer une trame » ajoute d'un coup les sections types. La trame visite technique contient les zones d'entrepôt (toiture, façades, quais, sprinklage…), la trame réunion les sections ordre du jour, points abordés, décisions et divers. Les sections déjà présentes ne sont pas dupliquées : on peut insérer une trame plusieurs fois sans risque.
+- **Sections** : « Ajouter une section » crée une section et place le curseur sur son titre (des zones types sont proposées). `Tab` passe ensuite au texte. Les boutons permettent de réordonner, replier ou déplier (« Tout replier » pour une vue d'ensemble) et supprimer. Une section contenant du texte demande confirmation avant suppression.
+- **Astuce des puces** : commencez une ligne par « - » (tiret puis espace). Elle deviendra une puce dans le rapport Word.
+- **Points d'attention et actions** : taper le point, puis `Entrée` (priorité moyenne par défaut ; responsable et échéance facultatifs). Le tableau affiche d'abord les points non terminés, par priorité puis par échéance. Un badge **« En retard »** signale une échéance dépassée. « Masquer les points terminés » allège la liste.
 
 L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
 
@@ -133,10 +146,14 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     ├── assets/logo/           # Logo Carrefour Property (provisoire, à remplacer)
     ├── components/
     │   ├── ui/                # Composants shadcn/ui (dialog, tabs, dropdown-menu : version native)
-    │   ├── form/              # SegmentedControl, NativeSelect
+    │   ├── form/              # DraftInput/DraftTextarea (champs liés au brouillon), SegmentedControl,
+    │   │                      # NativeSelect, IconButton
     │   ├── brand/BrandLogo.tsx
     │   └── layout/            # AppHeader, AppFooter (espace utilisé), EmptyState
     ├── features/              # Code métier, un dossier par fonctionnalité
+    │   ├── general/           # Onglet Informations générales : GeneralTab, participantOps,
+    │   │                      # visitInfoOps, suggestions (datalist)
+    │   ├── notes/             # Onglet Notes : sections, trames, points d'attention (Ops + View)
     │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
     │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
     │   ├── photos/            # photosRepo, usePhotos
@@ -167,6 +184,6 @@ Règle d'organisation : **tout nouveau code métier va dans `src/features/<featu
 - Aucune ressource externe au runtime : pas de CDN, pas de Google Fonts, aucun appel réseau (police système : Segoe UI sous Windows). La CSP du build bloque toute requête.
 - Pas d'import dynamique : tout doit rester dans le fichier unique.
 - Données : les composants lisent via les hooks et écrivent via les repositories, jamais via `db` (validation, transactions). Montants en centimes, dates `YYYY-MM-DD`. Zod s'importe depuis `zod/mini`.
-- Édition : passer par `useVisitDraft` et des `update` purs. Chaque erreur d'action s'affiche avec `notifyError()`.
+- Édition : passer par `useVisitDraft` et des `update` **purs** (logique dans les modules `*Ops.ts`, ids et dates générés dans le gestionnaire d'événement, voir `docs/ARCHITECTURE.md`). Chaque erreur d'action s'affiche avec `notifyError()`.
 - Pas de nouvelle dépendance lourde : le fichier unique a un budget de taille (voir `docs/DECISIONS.md`).
 - Couleurs : utiliser les tokens (`bg-brand`, `text-muted-foreground`, `bg-success`…) plutôt que des valeurs en dur. `accent-red` / `danger` sont réservés aux alertes et statuts critiques.

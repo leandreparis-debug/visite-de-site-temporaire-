@@ -62,7 +62,7 @@ test('full visit management flow in file://', async ({ page }) => {
   await expect(page).toHaveURL(/\/notes$/)
   await page.reload()
   await expect(page.getByRole('tab', { name: 'Notes' })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('tabpanel')).toContainText('Bientôt disponible')
+  await expect(page.getByRole('tabpanel')).toContainText('Notes par zone ou thème')
 
   // 6. Duplicate.
   await page.getByRole('button', { name: 'Actions pour « Visite Lyon — bilan »' }).click()

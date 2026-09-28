@@ -45,6 +45,50 @@ export default defineConfig([
     },
   },
   {
+    // Pure operation modules: replayed by the autosave, so no ids, clocks or
+    // randomness inside (see docs/ARCHITECTURE.md, "Règle des fonctions pures").
+    files: ['src/**/*Ops.ts'],
+    ignores: ['src/**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'zod', message: "Use 'zod/mini'." },
+            {
+              name: '@/lib/id',
+              message: 'Generate ids in the event handler and pass them to the operation.',
+            },
+            {
+              name: '@/lib/dates',
+              importNames: ['todayIso', 'nowIso'],
+              message: 'Compute dates in the event handler and pass them to the operation.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'Impure: pass the date as an argument.',
+        },
+        {
+          selector: "NewExpression[callee.name='Date']",
+          message: 'Impure: pass the date as an argument.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message: 'Impure: pass the value as an argument.',
+        },
+        {
+          selector: "MemberExpression[object.name='crypto']",
+          message: 'Impure: generate ids in the event handler.',
+        },
+      ],
+    },
+  },
+  {
     // Tests index into known fixtures; `!` keeps them readable.
     files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.ts'],
     rules: {

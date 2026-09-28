@@ -10,6 +10,8 @@ import { useState } from 'react'
 import { Link } from '@/app/Link'
 import { navigate, type VisitTab } from '@/app/router'
 import { EmptyState } from '@/components/layout/EmptyState'
+import { GeneralTab } from '@/features/general/GeneralTab'
+import { NotesTab } from '@/features/notes/NotesTab'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateFr } from '@/lib/dates'
@@ -126,7 +128,13 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
         </TabsList>
         {TABS.map((value) => (
           <TabsContent key={value} value={value} className="pt-2">
-            <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
+            {value === 'general' ? (
+              <GeneralTab visit={draft} update={update} />
+            ) : value === 'notes' ? (
+              <NotesTab visit={draft} update={update} />
+            ) : (
+              <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
+            )}
           </TabsContent>
         ))}
       </Tabs>

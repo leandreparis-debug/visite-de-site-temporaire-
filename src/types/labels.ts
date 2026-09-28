@@ -27,9 +27,9 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
 }
 
 export const ATTENTION_STATUS_LABELS: Record<AttentionStatus, string> = {
-  open: 'Ouvert',
+  open: 'À traiter',
   in_progress: 'En cours',
-  done: 'Traité',
+  done: 'Terminé',
 }
 
 export const DO_STEP_TYPE_LABELS: Record<DoStepType, string> = {
@@ -125,6 +125,8 @@ export const FIELD_LABELS: Readonly<Record<string, string>> = {
   title: 'Titre',
   date: 'Date',
   startTime: 'Heure de début',
+  author: 'Rédacteur',
+  purpose: 'Objet',
   site: 'Site',
   participants: 'Participants',
   noteSections: 'Notes',

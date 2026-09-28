@@ -259,6 +259,37 @@ describe('useVisitDraft', () => {
     expect((await getVisit(visit.id)).title).toBe('Corrigé')
   })
 
+  it('coalesces consecutive updates with the same key (one pending update per field)', async () => {
+    const { visit, result } = await setup()
+    const calls: string[] = []
+    const setTitleTracked = (title: string) => (v: Visit) => {
+      calls.push(title)
+      return { ...v, title }
+    }
+    act(() => {
+      result.current.update(setTitleTracked('A'), { coalesceKey: 'title' })
+      result.current.update(setTitleTracked('AB'), { coalesceKey: 'title' })
+      result.current.update(setTitleTracked('ABC'), { coalesceKey: 'title' })
+    })
+    expect(result.current.draft?.title).toBe('ABC')
+    calls.length = 0
+    await pump(result.current.flush())
+    // Only the last updater of the run is replayed on save.
+    expect(calls).toEqual(['ABC'])
+    expect((await getVisit(visit.id)).title).toBe('ABC')
+
+    // A different key in between breaks the run: both are kept, in order.
+    act(() => {
+      result.current.update(setTitleTracked('X'), { coalesceKey: 'title' })
+      result.current.update((v) => ({ ...v, site: { name: 'S2' } }), { coalesceKey: 'site' })
+      result.current.update(setTitleTracked('Y'), { coalesceKey: 'title' })
+    })
+    calls.length = 0
+    await pump(result.current.flush())
+    expect(calls).toEqual(['X', 'Y'])
+    expect(await getVisit(visit.id)).toMatchObject({ title: 'Y', site: { name: 'S2' } })
+  })
+
   it('reports an unknown visit as not found (not loading)', async () => {
     const { result } = renderHook(() => useVisitDraft('missing'))
     expect(result.current.isLoading).toBe(true)

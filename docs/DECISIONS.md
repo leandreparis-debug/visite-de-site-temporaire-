@@ -67,7 +67,17 @@ Le calcul précédent (« plus grand numéro + 1 ») réattribuait le numéro d'
 `Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` gardent l'API et les styles de shadcn/ui, mais sont construits sur `<dialog>` (`showModal`), l'API Popover (`popover`, `popovertarget`), le positionnement par ancre CSS et le motif ARIA des onglets. Le tri de la liste utilise un `<select>` natif.
 Avec les composants Radix, le fichier grossissait de ~160 Ko, contre un budget de 60 Ko : Radix embarque un moteur de positionnement, la gestion du focus et le verrouillage du défilement, que Chrome et Edge récents fournissent nativement. Les versions natives coûtent quelques Ko, et le clavier, Échap, la fermeture au clic extérieur et la restauration du focus viennent du navigateur. Contrepartie : ces fonctions n'existent pas dans jsdom et sont simulées en test (`src/test/domPolyfills.ts`). Les tests Playwright les vérifient dans un vrai Chromium.
 
-## 14. Outillage (étape 1)
+## 14. Opérations pures et coalescence des mises à jour (étape 4)
+
+Toute modification d'une visite passe par une fonction pure d'un module `*Ops.ts`, avec ids et dates fournis par l'appelant. Une règle ESLint et des tests sur objets gelés le vérifient.
+L'enregistrement automatique rejoue les modifications (voir `ARCHITECTURE.md`). Un id ou une date calculés dans l'updater différeraient d'une exécution à l'autre. Pour éviter qu'une longue saisie empile des centaines de mises à jour, celles d'un même champ sont coalescées (`coalesceKey`).
+
+## 15. Suggestions par `<datalist>` et zones de texte natives (étape 4)
+
+Les suggestions (rédacteurs, sites, villes, participants, responsables, zones types) utilisent `<datalist>`, et les notes des `<textarea>` qui s'agrandissent via `field-sizing: content`.
+Aucune dépendance (pas de combobox ni d'éditeur riche) : quelques Ko pour l'étape, clavier et accessibilité natifs. Le rendu des puces (« - ») est reporté au rapport Word.
+
+## 16. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.

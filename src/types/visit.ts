@@ -200,6 +200,10 @@ export const visitSchema = z
     title: requiredText('Le titre', 200),
     date: isoDateSchema,
     startTime: z.optional(timeSchema),
+    /** Author of the report ("rédacteur"). */
+    author: optionalText(120),
+    /** Purpose of the visit or meeting ("objet"). */
+    purpose: optionalText(1000),
     site: siteSchema,
     participants: z.array(participantSchema),
     noteSections: z.array(noteSectionSchema),
@@ -270,6 +274,7 @@ export type StoredVisit = Omit<Visit, 'nextPinNumber'> & { nextPinNumber?: numbe
  * Pure and cheap: runs on every read.
  */
 export function normalizeVisit(stored: StoredVisit): Visit {
+  // `author` / `purpose` (added later) are optional: absent means "not filled".
   if (typeof stored.nextPinNumber === 'number') return stored as Visit
   const maxNumber = stored.pins.reduce((max, pin) => Math.max(max, pin.number), 0)
   return { ...stored, nextPinNumber: maxNumber + 1 }
