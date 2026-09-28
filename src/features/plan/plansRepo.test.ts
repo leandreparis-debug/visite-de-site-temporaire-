@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { getNextPinNumber } from '@/features/plan/pins'
 import { addPlan, deletePlan, listPlans, renamePlan } from '@/features/plan/plansRepo'
 import { createVisit, getVisit, updateVisit } from '@/features/visits/visitsRepo'
 import { NotFoundError, ValidationError } from '@/lib/errors'
@@ -40,6 +39,7 @@ describe('plansRepo', () => {
     })
     await updateVisit(visit.id, (v) => ({
       ...v,
+      nextPinNumber: 4,
       pins: [pin('p1', removed.id, 1), pin('p2', kept.id, 2), pin('p3', kept.id, 3)],
     }))
 
@@ -48,12 +48,8 @@ describe('plansRepo', () => {
     expect((await listPlans(visit.id)).map((p) => p.id)).toEqual([kept.id])
     const pins = (await getVisit(visit.id)).pins
     expect(pins).toEqual([pin('p2', kept.id, 2), pin('p3', kept.id, 3)])
-    // Numbering stays stable: the next pin gets max + 1, deleted numbers are not reassigned.
-    expect(getNextPinNumber(pins)).toBe(4)
+    // Numbering stays stable: the counter is untouched by deletions.
+    expect((await getVisit(visit.id)).nextPinNumber).toBe(4)
     await expect(deletePlan(removed.id)).rejects.toBeInstanceOf(NotFoundError)
-  })
-
-  it('getNextPinNumber starts at 1', () => {
-    expect(getNextPinNumber([])).toBe(1)
   })
 })

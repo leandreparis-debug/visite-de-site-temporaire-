@@ -1,73 +1,144 @@
+/**
+ * shadcn/ui-compatible Dialog built on the native `<dialog>` element.
+ *
+ * Why not Radix: the app ships as a single HTML file with a size budget, and
+ * Chrome/Edge natively provide what Radix re-implements for dialogs (top
+ * layer, inert background = focus containment, Escape, focus restoration).
+ * Same API and styling as shadcn: Dialog, DialogContent, DialogHeader,
+ * DialogFooter, DialogTitle, DialogDescription, DialogClose.
+ */
+import { XIcon } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { XIcon } from 'lucide-react'
-import { Dialog as DialogPrimitive } from 'radix-ui'
 
-import { Button } from '@/components/ui/button'
-
-function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+interface DialogContextValue {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  titleId: string
+  descriptionId: string
 }
 
-function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+const DialogContext = React.createContext<DialogContextValue | null>(null)
+
+export function useDialogContext(component: string): DialogContextValue {
+  const context = React.useContext(DialogContext)
+  if (!context) throw new Error(`<${component}> must be used inside <Dialog>`)
+  return context
 }
 
-function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+export interface DialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  children?: React.ReactNode
 }
 
-function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+/** Controlled dialog root (state lives in the parent). */
+function Dialog({ open, onOpenChange, children }: DialogProps) {
+  const titleId = React.useId()
+  const descriptionId = React.useId()
+  const value = React.useMemo(
+    () => ({ open, onOpenChange, titleId, descriptionId }),
+    [open, onOpenChange, titleId, descriptionId],
+  )
+  return <DialogContext.Provider value={value}>{children}</DialogContext.Provider>
 }
 
-function DialogOverlay({
+export interface ModalContentProps extends Omit<React.ComponentProps<'dialog'>, 'open'> {
+  /** Close when clicking on the backdrop (not for alert dialogs). */
+  dismissOnBackdrop?: boolean
+  component?: string
+}
+
+/**
+ * Native modal `<dialog>` synced with the context `open` state. Children are
+ * only rendered while open (fresh state on each opening).
+ */
+export function ModalContent({
   className,
+  children,
+  dismissOnBackdrop = true,
+  component = 'DialogContent',
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: ModalContentProps) {
+  const { open, onOpenChange, titleId, descriptionId } = useDialogContext(component)
+  const ref = React.useRef<HTMLDialogElement>(null)
+
+  React.useEffect(() => {
+    const dialog = ref.current
+    if (!dialog) return
+    if (open && !dialog.open) dialog.showModal()
+    else if (!open && dialog.open) dialog.close()
+  }, [open])
+
   return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      data-slot="dialog-content"
+      data-state={open ? 'open' : 'closed'}
+      // Escape: let React state decide (the parent may refuse while busy).
+      onCancel={(event) => {
+        event.preventDefault()
+        onOpenChange(false)
+      }}
+      onClick={(event) => {
+        if (dismissOnBackdrop && event.target === event.currentTarget) onOpenChange(false)
+      }}
       className={cn(
-        'fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+        'm-auto w-full max-w-[calc(100%-2rem)] rounded-lg border bg-card p-0 text-card-foreground shadow-lg backdrop:bg-black/50 sm:max-w-lg',
+        'open:animate-in open:fade-in-0 open:zoom-in-95 backdrop:open:animate-in backdrop:open:fade-in-0',
         className,
       )}
       {...props}
-    />
+    >
+      {open && <div className="relative grid gap-4 p-6">{children}</div>}
+    </dialog>
   )
 }
 
 function DialogContent({
-  className,
-  children,
   showCloseButton = true,
+  children,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
-}) {
+}: Omit<ModalContentProps, 'component'> & { showCloseButton?: boolean }) {
   return (
-    <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
+    <ModalContent {...props}>
+      {children}
+      {showCloseButton && <DialogCloseButton />}
+    </ModalContent>
+  )
+}
+
+function DialogCloseButton() {
+  const { onOpenChange } = useDialogContext('DialogContent')
+  return (
+    <button
+      type="button"
+      data-slot="dialog-close"
+      onClick={() => {
+        onOpenChange(false)
+      }}
+      className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+    >
+      <XIcon aria-hidden="true" />
+      <span className="sr-only">Fermer</span>
+    </button>
+  )
+}
+
+/** Button closing the dialog (e.g. "Annuler"). */
+function DialogClose({ onClick, ...props }: React.ComponentProps<'button'>) {
+  const { onOpenChange } = useDialogContext('DialogClose')
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        onClick?.(event)
+        if (!event.defaultPrevented) onOpenChange(false)
+      }}
+      {...props}
+    />
   )
 }
 
@@ -81,33 +152,21 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function DialogFooter({
-  className,
-  showCloseButton = false,
-  children,
-  ...props
-}: React.ComponentProps<'div'> & {
-  showCloseButton?: boolean
-}) {
+function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-footer"
       className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}
-    >
-      {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
-        </DialogPrimitive.Close>
-      )}
-    </div>
+    />
   )
 }
 
-function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
+function DialogTitle({ className, ...props }: React.ComponentProps<'h2'>) {
+  const { titleId } = useDialogContext('DialogTitle')
   return (
-    <DialogPrimitive.Title
+    <h2
+      id={titleId}
       data-slot="dialog-title"
       className={cn('text-lg leading-none font-semibold', className)}
       {...props}
@@ -115,12 +174,11 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   )
 }
 
-function DialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+function DialogDescription({ className, ...props }: React.ComponentProps<'div'>) {
+  const { descriptionId } = useDialogContext('DialogDescription')
   return (
-    <DialogPrimitive.Description
+    <div
+      id={descriptionId}
       data-slot="dialog-description"
       className={cn('text-sm text-muted-foreground', className)}
       {...props}
@@ -135,8 +193,5 @@ export {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
-  DialogTrigger,
 }

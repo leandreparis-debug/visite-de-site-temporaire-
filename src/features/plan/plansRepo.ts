@@ -2,6 +2,7 @@
 import { Dexie } from 'dexie'
 import { touchVisit } from '@/features/visits/visitsRepo'
 import { db } from '@/lib/db/db'
+import { notifyStorageChange } from '@/lib/db/storage'
 import { nowIso } from '@/lib/dates'
 import { NotFoundError, withStorageErrors } from '@/lib/errors'
 import { createId } from '@/lib/id'
@@ -68,12 +69,14 @@ export function renamePlan(id: string, name: string): Promise<Plan> {
  */
 export function deletePlan(id: string): Promise<void> {
   return withStorageErrors(() =>
-    db.transaction('rw', db.plans, db.visits, async () => {
-      const plan = await db.plans.get(id)
-      if (!plan) throw new NotFoundError('plan', id)
-      await db.plans.delete(id)
-      const visit = await touchVisit(plan.visitId)
-      await db.visits.put({ ...visit, pins: visit.pins.filter((pin) => pin.planId !== id) })
-    }),
+    db
+      .transaction('rw', db.plans, db.visits, async () => {
+        const plan = await db.plans.get(id)
+        if (!plan) throw new NotFoundError('plan', id)
+        await db.plans.delete(id)
+        const visit = await touchVisit(plan.visitId)
+        await db.visits.put({ ...visit, pins: visit.pins.filter((pin) => pin.planId !== id) })
+      })
+      .then(notifyStorageChange),
   )
 }

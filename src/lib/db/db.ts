@@ -9,7 +9,7 @@
  */
 import { Dexie, type EntityTable } from 'dexie'
 import type { Photo, Plan } from '@/types/media'
-import type { Visit } from '@/types/visit'
+import type { StoredVisit } from '@/types/visit'
 
 export const DB_NAME = 'cp-compte-rendu'
 
@@ -20,7 +20,8 @@ export interface MetaEntry {
 }
 
 export type CpDatabase = Dexie & {
-  visits: EntityTable<Visit, 'id'>
+  /** Raw rows: read them through `normalizeVisit` (see visitsRepo). */
+  visits: EntityTable<StoredVisit, 'id'>
   photos: EntityTable<Photo, 'id'>
   plans: EntityTable<Plan, 'id'>
   meta: EntityTable<MetaEntry, 'key'>

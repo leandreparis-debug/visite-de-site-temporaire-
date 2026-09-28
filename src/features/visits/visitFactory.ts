@@ -1,6 +1,8 @@
+import * as z from 'zod/mini'
 import { nowIso } from '@/lib/dates'
 import { createId } from '@/lib/id'
-import { VISIT_SCHEMA_VERSION, type Visit, type VisitKind } from '@/types/visit'
+import { isoDateSchema, requiredText } from '@/types/common'
+import { VISIT_SCHEMA_VERSION, visitKindSchema, type Visit, type VisitKind } from '@/types/visit'
 
 /** Minimal data needed to create a visit. */
 export interface NewVisitInput {
@@ -10,6 +12,14 @@ export interface NewVisitInput {
   date: string
   siteName: string
 }
+
+/** Validation of the creation form (French messages). */
+export const newVisitInputSchema = z.object({
+  kind: visitKindSchema,
+  title: requiredText('Le titre', 200),
+  date: isoDateSchema,
+  siteName: requiredText('Le nom du site'),
+})
 
 /** Builds a new, empty visit (not validated, not saved). */
 export function createEmptyVisit(input: NewVisitInput, now: string = nowIso()): Visit {
@@ -30,6 +40,7 @@ export function createEmptyVisit(input: NewVisitInput, now: string = nowIso()): 
     projects: [],
     costs: [],
     pins: [],
+    nextPinNumber: 1,
   }
 }
 
@@ -86,5 +97,6 @@ export function duplicateVisitData(source: Visit, today: string, now: string = n
       }
     }),
     pins: [],
+    nextPinNumber: 1,
   }
 }

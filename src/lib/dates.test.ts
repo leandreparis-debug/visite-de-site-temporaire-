@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   formatDateFr,
   formatDateShortFr,
+  formatRelativeFr,
   isValidIsoDate,
   isValidTime,
   nowIso,
@@ -53,5 +54,16 @@ describe('dates', () => {
 
   it('nowIso returns a full ISO timestamp', () => {
     expect(nowIso()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  })
+  it('formats relative times in French', () => {
+    const now = Date.parse('2026-09-28T12:00:00.000Z')
+    const ago = (seconds: number) => new Date(now - seconds * 1000).toISOString()
+    expect(formatRelativeFr(ago(10), now)).toBe('à l’instant')
+    expect(formatRelativeFr(ago(5 * 60), now)).toBe('il y a 5 minutes')
+    expect(formatRelativeFr(ago(3 * 3600), now)).toBe('il y a 3 heures')
+    expect(formatRelativeFr(ago(26 * 3600), now)).toBe('hier')
+    expect(formatRelativeFr(ago(3 * 86_400), now)).toBe('il y a 3 jours')
+    expect(formatRelativeFr(ago(14 * 86_400), now)).toBe('il y a 2 semaines')
+    expect(formatRelativeFr(ago(400 * 86_400), now)).toBe('l’année dernière')
   })
 })

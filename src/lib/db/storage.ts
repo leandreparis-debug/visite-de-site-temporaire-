@@ -48,3 +48,40 @@ export async function getStorageEstimate(): Promise<StorageEstimate | null> {
     return null
   }
 }
+
+type StorageListener = () => void
+const storageListeners = new Set<StorageListener>()
+
+/**
+ * Subscribes to "stored data was freed" notifications (deletions), e.g. to
+ * refresh the storage usage display.
+ * @returns an unsubscribe function.
+ */
+export function onStorageChange(listener: StorageListener): () => void {
+  storageListeners.add(listener)
+  return () => {
+    storageListeners.delete(listener)
+  }
+}
+
+/** Notifies `onStorageChange` subscribers. Called by repositories after deletions. */
+export function notifyStorageChange(): void {
+  for (const listener of storageListeners) listener()
+}
+
+const sizeFormatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+
+/**
+ * Formats a byte count in French units (base 1024).
+ * @example formatStorageSize(13_002_342) // "12,4 Mo"
+ */
+export function formatStorageSize(bytes: number): string {
+  const units = ['octets', 'Ko', 'Mo', 'Go', 'To']
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  return `${sizeFormatter.format(unit === 0 ? Math.round(value) : value)}\u00a0${units[unit] ?? ''}`
+}

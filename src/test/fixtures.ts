@@ -105,6 +105,7 @@ export function makeFullVisit(overrides: Partial<Visit> = {}): Visit {
       },
     ],
     pins: [{ id: 'pin-1', planId: 'plan-x', photoId: 'photo-x', x: 0.25, y: 0.5, number: 1 }],
+    nextPinNumber: 2,
     ...overrides,
   }
 }

@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 2)** : fondations (coquille, design system, outillage), plus le modèle de données et la couche de stockage local (IndexedDB), sans interface métier pour l'instant.
+**État actuel (étape 3)** : gestion des visites (liste, recherche, création, duplication, suppression, écran d'édition avec enregistrement automatique). Les onglets de contenu (notes, photos, plan, DO…) arriveront aux étapes suivantes.
 
 ---
 
@@ -21,6 +21,24 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 
 Le fichier fonctionne hors réseau et ne dépend d'aucun autre fichier.
 Les données sont liées **au navigateur et au profil utilisateur** du poste : ouvrir le fichier dans Chrome puis dans Edge donne deux espaces de données distincts. Utilisez toujours le même navigateur.
+
+---
+
+## Utilisation
+
+### Premier parcours
+
+1. **Ouvrir l'outil** : double-clic sur le fichier `index.html`, dans Chrome ou Edge.
+2. **Créer une visite** : bouton **« Nouvelle visite »** (ou « Créer ma première visite »). Choisir le type (visite technique ou réunion), saisir le titre, la date (aujourd'hui par défaut) et le nom du site, puis **« Créer la visite »** ou la touche Entrée. La visite s'ouvre.
+3. **Modifier le titre** : cliquer sur le titre, le corriger, puis Entrée pour valider ou Échap pour annuler.
+4. **Rien à enregistrer à la main** : les modifications sont enregistrées automatiquement. L'indicateur en haut à droite affiche « Modifications en cours… », « Enregistrement… », puis « Enregistré ». En cas de problème, il affiche « Erreur d'enregistrement » avec un bouton **« Réessayer »**.
+5. **Revenir à la liste** : lien **« ← Visites »**. La liste permet de rechercher par titre ou site (les accents et majuscules sont ignorés), de filtrer par type et de trier.
+6. **Reprendre le suivi d'une visite** : menu **« ⋯ »** de la visite, puis **« Dupliquer »**. Le dialogue indique ce qui est repris (site, participants, sinistres DO, assurances, projets, coûts, points d'attention non terminés, plans) et ce qui ne l'est pas (notes, photos, repères). La copie, datée du jour, s'ouvre.
+7. **Supprimer une visite** : menu **« ⋯ »**, puis **« Supprimer »**. La suppression est **définitive** : pensez à exporter la visite avant (export disponible à une étape ultérieure).
+
+L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
+
+Le pied de page indique l'espace utilisé dans le navigateur. Il passe en orange au-delà de 80 % du quota.
 
 ---
 
@@ -95,29 +113,34 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 ├── eslint.config.js           # ESLint flat config
 ├── components.json            # Configuration shadcn/ui
 ├── docs/
+│   ├── ARCHITECTURE.md        # Couches, routage par hash, enregistrement automatique
 │   ├── DATA_MODEL.md          # Modèle de données (entités, règles, diagramme)
 │   └── DECISIONS.md           # Choix structurants
 ├── scripts/
 │   └── check-single-file.mjs  # Contrôle du build (fichier unique, aucune ressource externe)
 ├── tests/e2e/
 │   ├── smoke.spec.ts          # Ouverture de dist/index.html en file:// (console, réseau)
-│   └── storage.spec.ts        # IndexedDB + Blob persistants après rechargement en file://
+│   ├── storage.spec.ts        # IndexedDB + Blob persistants après rechargement en file://
+│   └── visits.spec.ts         # Parcours complet : créer, renommer, recharger, dupliquer, supprimer
 └── src/
     ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
-    │   ├── App.tsx            # Coquille : header + zone principale + Toaster
+    │   ├── App.tsx            # Coquille : header, page selon la route, footer, Toaster
+    │   ├── router.ts, Link.tsx # Routeur par hash (useRoute, navigate, <Link>)
     │   ├── ErrorBoundary.tsx  # Erreur de rendu : message FR + « Recharger l'outil »
     │   ├── globalErrorHandlers.ts # window.onerror / unhandledrejection → toast
     │   └── initStorage.ts     # Stockage persistant + vérification d'IndexedDB au démarrage
     ├── assets/logo/           # Logo Carrefour Property (provisoire, à remplacer)
     ├── components/
-    │   ├── ui/                # Composants shadcn/ui (button, card, dialog…)
+    │   ├── ui/                # Composants shadcn/ui (dialog, tabs, dropdown-menu : version native)
+    │   ├── form/              # SegmentedControl, NativeSelect
     │   ├── brand/BrandLogo.tsx
-    │   └── layout/            # AppHeader, EmptyState
+    │   └── layout/            # AppHeader, AppFooter (espace utilisé), EmptyState
     ├── features/              # Code métier, un dossier par fonctionnalité
-    │   ├── visits/            # visitsRepo, visitFactory (création, duplication), useVisits
+    │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
+    │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
     │   ├── photos/            # photosRepo, usePhotos
-    │   └── plan/              # plansRepo, usePlans, pins (numérotation)
+    │   └── plan/              # plansRepo, usePlans, pins (allocatePinNumber)
     ├── lib/
     │   ├── db/                # db.ts (Dexie), storage.ts (quota, persistance), meta.ts, useLiveResult
     │   ├── errors.ts          # Erreurs typées + toUserMessage()
@@ -125,11 +148,14 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── dates.ts           # Dates ISO, format français
     │   ├── id.ts              # createId() (UUID v4)
     │   ├── validation.ts      # parseOrThrow() → ValidationError
+    │   ├── notify.ts          # notifyError() (toast FR), pluralize()
+    │   ├── search.ts          # Recherche insensible aux accents
+    │   ├── useNow.ts          # Heure courante rafraîchie (« Modifiée il y a … »)
     │   ├── useObjectUrl.ts    # Seul point de création des URL blob:
     │   ├── zod-setup.ts       # Config Zod (jitless, messages FR)
     │   └── utils.ts           # cn() (fusion de classes Tailwind)
     ├── styles/globals.css     # Tailwind v4 + tokens du design system (@theme)
-    ├── test/                  # Setup Vitest (fake-indexeddb, jest-dom) + fixtures
+    ├── test/                  # Setup Vitest (fake-indexeddb, jest-dom, polyfills dialog/popover), fixtures
     └── types/                 # Schémas Zod (visit, media, common) + labels.ts (libellés FR)
 ```
 
@@ -140,5 +166,7 @@ Règle d'organisation : **tout nouveau code métier va dans `src/features/<featu
 - Interface en **français** ; code, noms de fichiers, variables et commentaires techniques en **anglais**.
 - Aucune ressource externe au runtime : pas de CDN, pas de Google Fonts, aucun appel réseau (police système : Segoe UI sous Windows). La CSP du build bloque toute requête.
 - Pas d'import dynamique : tout doit rester dans le fichier unique.
-- Données : toujours passer par les repositories (validation + transactions) ; montants en centimes, dates `YYYY-MM-DD`. Zod s'importe depuis `zod/mini`.
+- Données : les composants lisent via les hooks et écrivent via les repositories, jamais via `db` (validation, transactions). Montants en centimes, dates `YYYY-MM-DD`. Zod s'importe depuis `zod/mini`.
+- Édition : passer par `useVisitDraft` et des `update` purs. Chaque erreur d'action s'affiche avec `notifyError()`.
+- Pas de nouvelle dépendance lourde : le fichier unique a un budget de taille (voir `docs/DECISIONS.md`).
 - Couleurs : utiliser les tokens (`bg-brand`, `text-muted-foreground`, `bg-success`…) plutôt que des valeurs en dur. `accent-red` / `danger` sont réservés aux alertes et statuts critiques.

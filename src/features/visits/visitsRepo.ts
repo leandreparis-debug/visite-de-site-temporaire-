@@ -8,8 +8,18 @@ import { nowIso, todayIso } from '@/lib/dates'
 import { NotFoundError, withStorageErrors } from '@/lib/errors'
 import { createId } from '@/lib/id'
 import { parseOrThrow } from '@/lib/validation'
-import { visitSchema, type Visit, type VisitSummary } from '@/types/visit'
+import { notifyStorageChange } from '@/lib/db/storage'
+import { normalizeVisit, visitSchema, type Visit, type VisitSummary } from '@/types/visit'
 import { createEmptyVisit, duplicateVisitData, type NewVisitInput } from './visitFactory'
+
+/**
+ * Reads and normalizes a visit (fills fields missing from older rows).
+ * Use instead of `db.visits.get` everywhere.
+ */
+export async function readVisit(id: string): Promise<Visit | undefined> {
+  const stored = await db.visits.get(id)
+  return stored && normalizeVisit(stored)
+}
 
 /**
  * Returns a timestamp strictly greater than `previous`, so that two quick
@@ -21,22 +31,28 @@ export function nextTimestamp(previous: string): string {
   return new Date(Date.parse(previous) + 1).toISOString()
 }
 
+function countKeys(keys: readonly unknown[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const key of keys) {
+    if (typeof key === 'string') counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return counts
+}
+
 /**
  * Lists every visit as a light summary, most recently updated first.
  * Photo counts are computed from the `visitId` index (no blob is loaded).
  */
 export function listVisitSummaries(): Promise<VisitSummary[]> {
   return withStorageErrors(() =>
-    db.transaction('r', db.visits, db.photos, async () => {
-      const [visits, photoVisitIds] = await Promise.all([
+    db.transaction('r', db.visits, db.photos, db.plans, async () => {
+      const [visits, photoVisitIds, planVisitIds] = await Promise.all([
         db.visits.orderBy('updatedAt').reverse().toArray(),
         db.photos.orderBy('visitId').keys(),
+        db.plans.orderBy('visitId').keys(),
       ])
-      const photoCounts = new Map<string, number>()
-      for (const visitId of photoVisitIds) {
-        if (typeof visitId !== 'string') continue
-        photoCounts.set(visitId, (photoCounts.get(visitId) ?? 0) + 1)
-      }
+      const photoCounts = countKeys(photoVisitIds)
+      const planCounts = countKeys(planVisitIds)
       return visits.map((visit) => ({
         id: visit.id,
         title: visit.title,
@@ -45,6 +61,7 @@ export function listVisitSummaries(): Promise<VisitSummary[]> {
         siteName: visit.site.name,
         updatedAt: visit.updatedAt,
         photoCount: photoCounts.get(visit.id) ?? 0,
+        planCount: planCounts.get(visit.id) ?? 0,
         pinCount: visit.pins.length,
       }))
     }),
@@ -57,7 +74,7 @@ export function listVisitSummaries(): Promise<VisitSummary[]> {
  */
 export function getVisit(id: string): Promise<Visit> {
   return withStorageErrors(async () => {
-    const visit = await db.visits.get(id)
+    const visit = await readVisit(id)
     if (!visit) throw new NotFoundError('visit', id)
     return visit
   })
@@ -87,7 +104,7 @@ export function createVisit(input: NewVisitInput): Promise<Visit> {
 export function updateVisit(id: string, updater: (visit: Visit) => Visit): Promise<Visit> {
   return withStorageErrors(() =>
     db.transaction('rw', db.visits, async () => {
-      const current = await db.visits.get(id)
+      const current = await readVisit(id)
       if (!current) throw new NotFoundError('visit', id)
       const draft = updater(structuredClone(current))
       const next = parseOrThrow(visitSchema, {
@@ -109,13 +126,27 @@ export function updateVisit(id: string, updater: (visit: Visit) => Visit): Promi
  */
 export function deleteVisit(id: string): Promise<void> {
   return withStorageErrors(() =>
-    db.transaction('rw', db.visits, db.photos, db.plans, async () => {
-      const existing = await db.visits.get(id)
-      if (!existing) throw new NotFoundError('visit', id)
-      await db.photos.where('visitId').equals(id).delete()
-      await db.plans.where('visitId').equals(id).delete()
-      await db.visits.delete(id)
-    }),
+    db
+      .transaction('rw', db.visits, db.photos, db.plans, async () => {
+        const existing = await db.visits.get(id)
+        if (!existing) throw new NotFoundError('visit', id)
+        await db.photos.where('visitId').equals(id).delete()
+        await db.plans.where('visitId').equals(id).delete()
+        await db.visits.delete(id)
+      })
+      .then(notifyStorageChange),
+  )
+}
+
+/** Number of photos and plans stored for a visit (e.g. before deleting it). */
+export function getVisitMediaCounts(
+  id: string,
+): Promise<{ photoCount: number; planCount: number }> {
+  return withStorageErrors(() =>
+    db.transaction('r', db.photos, db.plans, async () => ({
+      photoCount: await db.photos.where('visitId').equals(id).count(),
+      planCount: await db.plans.where('visitId').equals(id).count(),
+    })),
   )
 }
 
@@ -130,7 +161,7 @@ export function deleteVisit(id: string): Promise<void> {
 export function duplicateVisit(id: string): Promise<Visit> {
   return withStorageErrors(() =>
     db.transaction('rw', db.visits, db.plans, async () => {
-      const source = await db.visits.get(id)
+      const source = await readVisit(id)
       if (!source) throw new NotFoundError('visit', id)
       const now = nowIso()
       const copy = parseOrThrow(visitSchema, duplicateVisitData(source, todayIso(), now))
@@ -149,7 +180,7 @@ export function duplicateVisit(id: string): Promise<Visit> {
  * Must be called inside a transaction that includes `db.visits`.
  */
 export async function touchVisit(visitId: string): Promise<Visit> {
-  const visit = await db.visits.get(visitId)
+  const visit = await readVisit(visitId)
   if (!visit) throw new NotFoundError('visit', visitId)
   const next = { ...visit, updatedAt: nextTimestamp(visit.updatedAt) }
   await db.visits.put(next)

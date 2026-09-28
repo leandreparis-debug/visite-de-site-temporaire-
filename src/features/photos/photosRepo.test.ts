@@ -85,9 +85,14 @@ describe('photosRepo', () => {
     })
     await updateVisit(visit.id, (v) => ({
       ...v,
+      nextPinNumber: 4,
       pins: [pin('p1', removed.id, 1), pin('p2', kept.id, 2), pin('p3', removed.id, 3)],
     }))
-    await updateVisit(other.id, (v) => ({ ...v, pins: [pin('o1', removed.id, 1)] }))
+    await updateVisit(other.id, (v) => ({
+      ...v,
+      nextPinNumber: 2,
+      pins: [pin('o1', removed.id, 1)],
+    }))
 
     await deletePhoto(removed.id)
 

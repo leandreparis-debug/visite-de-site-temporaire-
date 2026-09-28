@@ -52,7 +52,22 @@ Les flottants produisent des écarts d'arrondi (`0.1 + 0.2 ≠ 0.3`) inacceptabl
 Les photos et les plans sont stockés en `Blob` dans les tables `photos` et `plans`, jamais dans l'objet visite. Seuls les repères (légers) restent dans la visite.
 Lister les visites ne charge ainsi aucun binaire, et une visite reste un petit objet JSON facile à valider, dupliquer et exporter.
 
-## 11. Outillage (étape 1)
+## 11. Routeur maison par hash (étape 3)
+
+La navigation utilise `#/…` avec un routeur d'une centaine de lignes (`src/app/router.ts`) plutôt qu'une librairie (React Router, TanStack Router).
+Seul le hash fonctionne en `file://`. Trois routes ne justifient pas une dépendance de plusieurs dizaines de Ko dans un fichier unique au budget serré, et le routeur maison donne des routes typées (union discriminée).
+
+## 12. Compteur de repères `nextPinNumber` (étape 3)
+
+Chaque visite porte un compteur `nextPinNumber` qui ne fait qu'augmenter (`allocatePinNumber`). Un numéro de repère n'est donc **jamais réattribué**, même après suppression du plus grand.
+Le calcul précédent (« plus grand numéro + 1 ») réattribuait le numéro d'un repère supprimé : un rapport déjà diffusé qui cite le « repère 7 » aurait pu désigner une autre photo. Les visites enregistrées sans ce champ sont normalisées à la lecture (`normalizeVisit` : plus grand numéro + 1), sans nouvelle version Dexie.
+
+## 13. Dialogues, onglets et menus sur éléments natifs plutôt que Radix (étape 3)
+
+`Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` gardent l'API et les styles de shadcn/ui, mais sont construits sur `<dialog>` (`showModal`), l'API Popover (`popover`, `popovertarget`), le positionnement par ancre CSS et le motif ARIA des onglets. Le tri de la liste utilise un `<select>` natif.
+Avec les composants Radix, le fichier grossissait de ~160 Ko, contre un budget de 60 Ko : Radix embarque un moteur de positionnement, la gestion du focus et le verrouillage du défilement, que Chrome et Edge récents fournissent nativement. Les versions natives coûtent quelques Ko, et le clavier, Échap, la fermeture au clic extérieur et la restauration du focus viennent du navigateur. Contrepartie : ces fonctions n'existent pas dans jsdom et sont simulées en test (`src/test/domPolyfills.ts`). Les tests Playwright les vérifient dans un vrai Chromium.
+
+## 14. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.

@@ -117,13 +117,20 @@ describe('visitSchema', () => {
     expect(issues.map((i) => i.path.join('.')).sort()).toEqual(['pins.1.number', 'pins.2.number'])
     const duplicates = issuesOf(
       makeFullVisit({
+        nextPinNumber: 4,
         pins: [
           { ...base, id: 'a', number: 3 },
           { ...base, id: 'b', number: 3 },
         ],
       }),
     )
-    expect(duplicates[0]?.message).toBe('Le numéro de repère 3 est déjà utilisé')
+    expect(duplicates.map((i) => i.message)).toEqual(['Le numéro de repère 3 est déjà utilisé'])
+  })
+
+  it('rejects a pin counter not greater than every pin number', () => {
+    const issues = issuesOf(makeFullVisit({ nextPinNumber: 1 }))
+    expect(issues.map((i) => i.path.join('.'))).toEqual(['nextPinNumber'])
+    expect(issues[0]?.message).toBe('Le compteur de repères doit être supérieur au numéro 1')
   })
 
   it('rejects a cost linked to an unknown project', () => {

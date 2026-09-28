@@ -74,3 +74,31 @@ export function todayIso(now: Date = new Date()): string {
 export function nowIso(): string {
   return new Date().toISOString()
 }
+
+const relativeFormatter = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' })
+
+const RELATIVE_UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 365 * 86_400],
+  ['month', 30 * 86_400],
+  ['week', 7 * 86_400],
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+]
+
+/**
+ * Relative French time for a timestamp, e.g. "il y a 5 minutes", "hier",
+ * "il y a 3 jours"; "à l’instant" under 45 seconds.
+ */
+export function formatRelativeFr(timestamp: string, now: number = Date.now()): string {
+  const seconds = Math.round((Date.parse(timestamp) - now) / 1000)
+  const abs = Math.abs(seconds)
+  if (Number.isNaN(seconds)) return ''
+  if (abs < 45) return 'à l’instant'
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (abs >= size || unit === 'minute') {
+      return relativeFormatter.format(Math.round(seconds / size), unit)
+    }
+  }
+  return ''
+}

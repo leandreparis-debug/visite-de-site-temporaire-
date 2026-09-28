@@ -6,6 +6,7 @@ import { Dexie } from 'dexie'
 import * as z from 'zod/mini'
 import { touchVisit } from '@/features/visits/visitsRepo'
 import { db } from '@/lib/db/db'
+import { notifyStorageChange } from '@/lib/db/storage'
 import { nowIso } from '@/lib/dates'
 import { NotFoundError, ValidationError, withStorageErrors } from '@/lib/errors'
 import { createId } from '@/lib/id'
@@ -81,13 +82,15 @@ export function updatePhotoMeta(id: string, patch: PhotoMetaPatch): Promise<Phot
  */
 export function deletePhoto(id: string): Promise<void> {
   return withStorageErrors(() =>
-    db.transaction('rw', db.photos, db.visits, async () => {
-      const photo = await db.photos.get(id)
-      if (!photo) throw new NotFoundError('photo', id)
-      await db.photos.delete(id)
-      const visit = await touchVisit(photo.visitId)
-      await db.visits.put({ ...visit, pins: visit.pins.filter((pin) => pin.photoId !== id) })
-    }),
+    db
+      .transaction('rw', db.photos, db.visits, async () => {
+        const photo = await db.photos.get(id)
+        if (!photo) throw new NotFoundError('photo', id)
+        await db.photos.delete(id)
+        const visit = await touchVisit(photo.visitId)
+        await db.visits.put({ ...visit, pins: visit.pins.filter((pin) => pin.photoId !== id) })
+      })
+      .then(notifyStorageChange),
   )
 }
 

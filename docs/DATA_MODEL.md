@@ -40,6 +40,7 @@ erDiagram
         string date "YYYY-MM-DD"
         string startTime "HH:mm, optionnel"
         object site "name, code?, address?, city?"
+        int nextPinNumber "compteur de repères, >= 1"
     }
     PARTICIPANT {
         string id
@@ -161,7 +162,9 @@ Les photos et les plans (Blob) sont dans leurs propres tables, jamais dans l'obj
 
 - Stockés **dans la visite** (légers), ils relient une photo (`photoId`) à un plan (`planId`).
 - `x` et `y` sont **normalisés entre 0 et 1** par rapport à la largeur et la hauteur du plan : indépendants du zoom et de la résolution d'affichage.
-- `number` : entier ≥ 1, **unique par visite** (contrôlé par le schéma) et **stable** : supprimer un repère ne renumérote pas les autres. Nouveau numéro = plus grand numéro existant + 1 (`getNextPinNumber`).
+- `number` : entier ≥ 1, **unique par visite** (contrôlé par le schéma) et **stable** : supprimer un repère ne renumérote pas les autres.
+- **Un numéro n'est jamais réattribué, même après suppression** (y compris du plus grand) : la visite porte un compteur `nextPinNumber` (≥ 1, défaut 1) qui ne fait qu'augmenter. Pour créer un repère, appeler `allocatePinNumber(visit)` dans le même `updateVisit` que l'ajout du repère : la fonction renvoie le numéro et la visite avec le compteur incrémenté. Le schéma vérifie que `nextPinNumber` est supérieur à tous les numéros existants.
+- Visites enregistrées avant l'existence du compteur : `normalizeVisit` (appelée à chaque lecture par le repository) le calcule comme « plus grand numéro + 1 ».
 - Supprimer une photo ou un plan supprime, dans la même transaction, les repères qui y font référence.
 
 ### Cohérence
@@ -170,7 +173,7 @@ Erreurs bloquantes (validation Zod, messages en français) :
 
 - `endDate` ≥ `startDate` quand les deux sont renseignées (assurances, projets) ;
 - `cost.projectId` doit désigner un projet de la même visite ;
-- numéros de repères uniques ;
+- numéros de repères uniques, et `nextPinNumber` supérieur à chacun d'eux ;
 - montants entiers ≥ 0, TVA entre 0 et 10 000 pb, coordonnées entre 0 et 1, dates et heures valides, titre non vide (200 caractères maximum).
 
 Avertissements non bloquants (`getVisitWarnings(visit)`) : montant indemnisé supérieur au montant réclamé sur un sinistre DO.
@@ -187,13 +190,15 @@ Avertissements non bloquants (`getVisitWarnings(visit)`) : montant indemnisé su
 | Points d'attention **non traités** (`status` ≠ `done`)       | Points d'attention traités |
 | Plans (copie des fichiers)                                   |                            |
 
-Tous les identifiants des sous-objets sont régénérés, et `cost.projectId` est remappé vers le nouvel identifiant du projet. L'opération se fait dans une seule transaction.
+Tous les identifiants des sous-objets sont régénérés, `nextPinNumber` repart à 1 (aucun repère copié), et `cost.projectId` est remappé vers le nouvel identifiant du projet. L'opération se fait dans une seule transaction.
 
 ## Couche de stockage
 
 - `src/lib/db/db.ts` : instance Dexie unique `db`, schéma version 1.
 - Repositories (`src/features/*/…Repo.ts`) : fonctions async, **validation Zod à chaque écriture**, opérations multi-tables en **transaction** (suppression en cascade, duplication, suppression de repères).
 - Hooks réactifs (`useVisitSummaries`, `useVisit`, `usePhotos`, `usePlans`) : `{ data, isLoading, error }` ; un identifiant inconnu donne `isLoading: false` et une `NotFoundError`.
+- Édition avec enregistrement automatique : `useVisitDraft` (voir [`ARCHITECTURE.md`](ARCHITECTURE.md)).
+- Le résumé de liste (`VisitSummary`) contient aussi `planCount` (utilisé par le dialogue de suppression).
 - Erreurs typées (`src/lib/errors.ts`) : `NotFoundError`, `ValidationError` (liste des champs en français), `StorageQuotaError`, `StorageUnavailableError`. `toUserMessage(err)` donne le message à afficher.
 
 ## Faire évoluer le schéma

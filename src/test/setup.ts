@@ -2,6 +2,7 @@
 import '@/lib/zod-setup'
 import 'fake-indexeddb/auto'
 import '@testing-library/jest-dom/vitest'
+import './domPolyfills'
 import { Blob as NodeBlob } from 'node:buffer'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'

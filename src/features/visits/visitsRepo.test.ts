@@ -124,6 +124,7 @@ describe('visitsRepo — listVisitSummaries', () => {
       siteName: 'Entrepôt Lyon',
       updatedAt: (await getVisit(a.id)).updatedAt,
       photoCount: 0,
+      planCount: 0,
       pinCount: 0,
     })
     expect(summaries.find((s) => s.id === b.id)).toMatchObject({

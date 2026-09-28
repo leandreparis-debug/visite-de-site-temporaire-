@@ -210,6 +210,17 @@ export const visitSchema = z
     costs: z.array(costSchema),
     /** Pins are light: they stay in the visit (photos / plans do not). */
     pins: z.array(pinSchema),
+    /**
+     * Number given to the next pin. Only ever increases, so a pin number is
+     * never reassigned, even after deleting the highest one. Use
+     * `allocatePinNumber` to create a pin.
+     */
+    nextPinNumber: z._default(
+      z
+        .int({ error: 'Compteur de repères invalide' })
+        .check(z.gte(1, { error: 'Le compteur de repères doit être ≥ 1' })),
+      1,
+    ),
   })
   .check(
     z.superRefine((visit, ctx) => {
@@ -237,10 +248,32 @@ export const visitSchema = z
           })
         }
         seen.add(pin.number)
+        if (pin.number >= visit.nextPinNumber) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['nextPinNumber'],
+            message: `Le compteur de repères doit être supérieur au numéro ${pin.number}`,
+            input: visit.nextPinNumber,
+          })
+        }
       })
     }),
   )
 export type Visit = z.infer<typeof visitSchema>
+
+/** A visit as possibly stored by an earlier build (before `nextPinNumber` existed). */
+export type StoredVisit = Omit<Visit, 'nextPinNumber'> & { nextPinNumber?: number }
+
+/**
+ * Normalizes a visit read from the database: fills `nextPinNumber` when it is
+ * missing (visits saved before the field existed) with `max(pin numbers) + 1`.
+ * Pure and cheap: runs on every read.
+ */
+export function normalizeVisit(stored: StoredVisit): Visit {
+  if (typeof stored.nextPinNumber === 'number') return stored as Visit
+  const maxNumber = stored.pins.reduce((max, pin) => Math.max(max, pin.number), 0)
+  return { ...stored, nextPinNumber: maxNumber + 1 }
+}
 
 /** Row displayed in the visit list (no heavy data). */
 export interface VisitSummary {
@@ -251,6 +284,7 @@ export interface VisitSummary {
   siteName: string
   updatedAt: string
   photoCount: number
+  planCount: number
   pinCount: number
 }
 
