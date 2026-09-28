@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/*
+ * Light mode only: `dark:` utilities (used by shadcn/ui) only apply under an
+ * explicit `.dark` ancestor, which the app never sets. Without this, Tailwind
+ * would follow the OS `prefers-color-scheme` setting.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens — source of truth.
+ * `static` forces every token to be emitted as a CSS variable, even if no
+ * utility uses it yet, so components can rely on `var(--color-…)`.
+ */
+@theme static {
+  /* System font stack only: no web font is downloaded or embedded. */
+  --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+
+  /* Brand */
+  --color-brand: #004e9f;
+  --color-brand-foreground: #ffffff;
+  --color-brand-soft: #e8f0fa;
+  /* Reserved for alerts and critical statuses. */
+  --color-accent-red: #e1000f;
+  --color-accent-red-foreground: #ffffff;
+
+  /* Neutrals */
+  --color-background: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-border: #e1e6ed;
+  --color-muted: #eef1f5;
+  --color-muted-foreground: #5b6574;
+  --color-foreground: #0f1b2d;
+
+  /* Statuses */
+  --color-success: #1a7f45;
+  --color-success-foreground: #ffffff;
+  --color-warning: #b45309;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #e1000f;
+  --color-danger-foreground: #ffffff;
+
+  /* Light card shadow */
+  --shadow-card: 0 1px 2px 0 rgb(15 27 45 / 0.04), 0 1px 3px 0 rgb(15 27 45 / 0.06);
+}
+
+/* Variables expected by shadcn/ui, mapped onto the tokens above. */
+:root {
+  color-scheme: light;
+  --radius: 0.75rem;
+
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-foreground);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-foreground);
+  --primary: var(--color-brand);
+  --primary-foreground: var(--color-brand-foreground);
+  --secondary: var(--color-muted);
+  --secondary-foreground: var(--color-foreground);
+  --muted: var(--color-muted);
+  --muted-foreground: var(--color-muted-foreground);
+  --accent: var(--color-brand-soft);
+  --accent-foreground: var(--color-brand);
+  --destructive: var(--color-danger);
+  --border: var(--color-border);
+  --input: #cfd7e1;
+  --ring: var(--color-brand);
+}
+
+/*
+ * shadcn/ui semantic colors not already declared in `@theme static`
+ * (background, foreground, border, muted, muted-foreground are defined there
+ * and must not be redeclared, or the variables would reference each other).
+ */
+@theme inline {
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+  }
+}
