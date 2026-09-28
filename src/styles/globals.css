@@ -1,4 +1,6 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
+/* Only application code generates classes (not docs, tests or scripts). */
+@source '../';
 @import 'tw-animate-css';
 
 /*

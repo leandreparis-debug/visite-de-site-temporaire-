@@ -29,7 +29,9 @@ export type CpDatabase = Dexie & {
 
 /** Creates a database instance (a single one is exported below). */
 export function createDatabase(name = DB_NAME): CpDatabase {
-  const database = new Dexie(name) as CpDatabase
+  // Live-query results are frozen, not deep-cloned: cheaper with many photos
+  // (Blobs are never copied) and any accidental mutation of read data throws.
+  const database = new Dexie(name, { cache: 'immutable' }) as CpDatabase
   database.version(1).stores({
     visits: 'id, updatedAt, date, kind',
     photos: 'id, visitId, [visitId+order]',

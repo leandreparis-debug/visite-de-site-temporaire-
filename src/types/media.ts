@@ -40,8 +40,15 @@ export const photoSchema = z.object({
     .check(z.maxLength(1000, { error: 'La légende ne doit pas dépasser 1000 caractères' })),
   category: photoCategorySchema,
   order: orderSchema,
-  /** When the picture was taken (EXIF), if known. */
-  takenAt: z.optional(timestampSchema),
+  /**
+   * When the picture was taken (EXIF DateTimeOriginal), if known. Local time
+   * without offset (`YYYY-MM-DDTHH:mm:ss`): EXIF does not store a time zone.
+   */
+  takenAt: z.optional(
+    z.iso.datetime({ local: true, offset: true, error: 'Date de prise de vue invalide' }),
+  ),
+  /** Name of the source file (hint, and to find a photo again). */
+  originalName: optionalText(255),
   createdAt: timestampSchema,
 })
 export type Photo = z.infer<typeof photoSchema>

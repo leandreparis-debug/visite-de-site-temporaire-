@@ -77,7 +77,22 @@ L'enregistrement automatique rejoue les modifications (voir `ARCHITECTURE.md`). 
 Les suggestions (rédacteurs, sites, villes, participants, responsables, zones types) utilisent `<datalist>`, et les notes des `<textarea>` qui s'agrandissent via `field-sizing: content`.
 Aucune dépendance (pas de combobox ni d'éditeur riche) : quelques Ko pour l'étape, clavier et accessibilité natifs. Le rendu des puces (« - ») est reporté au rapport Word.
 
-## 16. Outillage (étape 1)
+## 16. Parseur EXIF maison (étape 5)
+
+La date de prise de vue est lue par un parseur de ~100 lignes (`processing/exif.ts`), limité à `DateTimeOriginal` et aux 128 premiers Ko. L'orientation est appliquée par le navigateur (`createImageBitmap(..., { imageOrientation: 'from-image' })`).
+Les bibliothèques EXIF complètes pèsent 20 à 60 Ko pour un seul champ utile ici. Le parseur ne lève jamais d'exception : une structure inattendue donne `null`.
+
+## 17. HEIC refusé avec explication (étape 5)
+
+Les photos HEIC/HEIF (format par défaut de l'iPhone) sont refusées avec un message qui explique le réglage à changer (« Le plus compatible ») ou l'export en JPEG.
+Chrome et Edge ne décodent pas le HEIC. Un décodeur WASM (libheif) pèserait plus de 1 Mo, soit plus du double du fichier actuel, pour un cas évitable par un réglage du téléphone.
+
+## 18. Pas de Web Worker pour les photos (étape 5)
+
+Le traitement se fait sur le fil principal, une photo à la fois.
+Un worker demanderait soit un fichier de script séparé, impossible avec un fichier unique, soit du code chargé depuis un Blob : plus complexe à construire et à tester, avec la CSP à assouplir. `createImageBitmap` décode déjà hors du fil principal ; il ne reste que le dessin et l'encodage (~0,5 s pour une photo de 12 Mpx, mesuré en e2e). L'interface reste utilisable pendant l'import, avec progression et annulation.
+
+## 19. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.

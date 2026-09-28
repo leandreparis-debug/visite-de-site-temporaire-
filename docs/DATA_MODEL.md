@@ -129,7 +129,8 @@ erDiagram
         string caption
         enum category
         int order
-        string takenAt
+        string takenAt "heure locale EXIF, sans fuseau"
+        string originalName "nom du fichier source"
         string createdAt
     }
     PLAN {
@@ -167,6 +168,14 @@ erDiagram
 
 - Les **sections de notes** sont stockées avec `order` = 0..n-1, recalculé à chaque ajout, suppression ou déplacement. `content` est du texte brut ; une ligne commençant par « - » deviendra une puce dans le rapport (étape 10).
 - Les **points d'attention** sont stockés dans l'ordre de saisie. Le tri affiché (non terminés d'abord, puis priorité décroissante, puis échéance croissante) et le badge « En retard » sont calculés à l'affichage (`attentionPointView.ts`), sans modifier les données.
+
+### Photos (étape 5)
+
+- `blob` : image principale JPEG, 2000 px max. sur le grand côté. `thumbnailBlob` : miniature JPEG, 480 px max. Le fichier d'origine n'est **pas** conservé.
+- `width` / `height` : dimensions de l'image principale, orientation EXIF déjà appliquée (échangées après une rotation).
+- `takenAt?` : date de prise de vue EXIF (`DateTimeOriginal`), en **heure locale sans fuseau** (`YYYY-MM-DDTHH:mm:ss`), car l'EXIF n'enregistre pas le fuseau.
+- `originalName?` : nom du fichier source, affiché en indication. Champ optionnel, sans nouvelle version Dexie.
+- `order` : position dans la galerie, 0..n-1 (import : à la suite des photos existantes).
 
 ### Binaires hors de la visite
 

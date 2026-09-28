@@ -94,6 +94,69 @@ export function deletePhoto(id: string): Promise<void> {
   )
 }
 
+/** Number of photos of a visit (no blob loaded). */
+export function countPhotos(visitId: string): Promise<number> {
+  return withStorageErrors(() => db.photos.where('visitId').equals(visitId).count())
+}
+
+/**
+ * Replaces the image of a photo (after a rotation): main image, thumbnail and size.
+ * @throws {NotFoundError} if the photo does not exist.
+ */
+export function replacePhotoImage(
+  id: string,
+  image: Pick<Photo, 'blob' | 'thumbnailBlob' | 'width' | 'height'>,
+): Promise<Photo> {
+  return withStorageErrors(() =>
+    db.transaction('rw', db.photos, db.visits, async () => {
+      const photo = await db.photos.get(id)
+      if (!photo) throw new NotFoundError('photo', id)
+      const next = parseOrThrow(photoSchema, { ...photo, ...image })
+      await db.photos.put(next)
+      await touchVisit(photo.visitId)
+      return next
+    }),
+  )
+}
+
+/** Sets the same category on several photos, in one transaction. */
+export function setPhotosCategory(
+  ids: readonly string[],
+  category: Photo['category'],
+): Promise<void> {
+  return withStorageErrors(() =>
+    db.transaction('rw', db.photos, db.visits, async () => {
+      const photos = (await db.photos.bulkGet([...ids])).filter((p) => p !== undefined)
+      const valid = parseOrThrow(photoMetaPatchSchema, { category })
+      await db.photos.bulkPut(photos.map((photo) => ({ ...photo, ...valid })))
+      for (const visitId of new Set(photos.map((p) => p.visitId))) await touchVisit(visitId)
+    }),
+  )
+}
+
+/**
+ * Deletes several photos and, in the same transaction, the pins that reference
+ * them. Pin numbers of the other pins never change (and are never reassigned).
+ */
+export function deletePhotos(ids: readonly string[]): Promise<void> {
+  const idSet = new Set(ids)
+  return withStorageErrors(() =>
+    db
+      .transaction('rw', db.photos, db.visits, async () => {
+        const photos = (await db.photos.bulkGet([...idSet])).filter((p) => p !== undefined)
+        await db.photos.bulkDelete(photos.map((p) => p.id))
+        for (const visitId of new Set(photos.map((p) => p.visitId))) {
+          const visit = await touchVisit(visitId)
+          await db.visits.put({
+            ...visit,
+            pins: visit.pins.filter((pin) => !idSet.has(pin.photoId)),
+          })
+        }
+      })
+      .then(notifyStorageChange),
+  )
+}
+
 /**
  * Sets the photo order of a visit. `orderedIds` must contain exactly the ids
  * of the visit's photos.

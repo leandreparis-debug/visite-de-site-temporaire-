@@ -12,6 +12,9 @@ import { navigate, type VisitTab } from '@/app/router'
 import { EmptyState } from '@/components/layout/EmptyState'
 import { GeneralTab } from '@/features/general/GeneralTab'
 import { NotesTab } from '@/features/notes/NotesTab'
+import { countPhotos } from '@/features/photos/photosRepo'
+import { PhotosTab } from '@/features/photos/PhotosTab'
+import { useLiveResult } from '@/lib/db/useLiveResult'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateFr } from '@/lib/dates'
@@ -46,6 +49,7 @@ export interface VisitEditorPageProps {
 export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
   const { draft, isLoading, update, status, error, flush, discard } = useVisitDraft(visitId)
   const [action, setAction] = useState<VisitAction | null>(null)
+  const { data: photoCount } = useLiveResult(() => countPhotos(visitId), `photo-count-${visitId}`)
 
   if (isLoading) return <EditorSkeleton />
   if (!draft) {
@@ -122,7 +126,9 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
         <TabsList className="h-auto! w-full flex-wrap justify-start">
           {TABS.map((value) => (
             <TabsTrigger key={value} value={value} className="flex-none px-3">
-              {TAB_LABELS[value]}
+              {value === 'photos' && photoCount !== undefined
+                ? `${TAB_LABELS[value]} (${photoCount})`
+                : TAB_LABELS[value]}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -132,6 +138,8 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
               <GeneralTab visit={draft} update={update} />
             ) : value === 'notes' ? (
               <NotesTab visit={draft} update={update} />
+            ) : value === 'photos' ? (
+              <PhotosTab visit={draft} />
             ) : (
               <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
             )}

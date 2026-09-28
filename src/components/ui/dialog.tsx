@@ -46,6 +46,8 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
 export interface ModalContentProps extends Omit<React.ComponentProps<'dialog'>, 'open'> {
   /** Close when clicking on the backdrop (not for alert dialogs). */
   dismissOnBackdrop?: boolean
+  /** Classes of the inner wrapper (padding, layout). */
+  bodyClassName?: string
   component?: string
 }
 
@@ -57,6 +59,7 @@ export function ModalContent({
   className,
   children,
   dismissOnBackdrop = true,
+  bodyClassName,
   component = 'DialogContent',
   ...props
 }: ModalContentProps) {
@@ -92,7 +95,7 @@ export function ModalContent({
       )}
       {...props}
     >
-      {open && <div className="relative grid gap-4 p-6">{children}</div>}
+      {open && <div className={cn('relative grid gap-4 p-6', bodyClassName)}>{children}</div>}
     </dialog>
   )
 }

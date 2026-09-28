@@ -103,11 +103,15 @@ describe('VisitEditorPage', () => {
   it('keeps the tabs in sync with the hash', async () => {
     const { visit, user } = await openEditor('photos')
     const tablist = screen.getByRole('tablist')
-    expect(within(tablist).getByRole('tab', { name: 'Photos' })).toHaveAttribute(
+    expect(within(tablist).getByRole('tab', { name: /^Photos/ })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(screen.getByRole('tabpanel', { name: 'Photos' })).toHaveTextContent('Bientôt disponible')
+    expect(
+      await within(screen.getByRole('tabpanel', { name: /^Photos/ })).findByText(
+        'Glissez vos photos ici ou cliquez sur Ajouter',
+      ),
+    ).toBeInTheDocument()
 
     await user.click(within(tablist).getByRole('tab', { name: 'DO & assurances' }))
     expect(window.location.hash).toBe(`#/visits/${visit.id}/do-insurance`)

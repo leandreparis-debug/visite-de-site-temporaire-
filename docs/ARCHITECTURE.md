@@ -113,6 +113,40 @@ Ici, l'updater est exécuté une fois pour l'affichage, puis de nouveau à la sa
 
 Les valeurs d'affichage qui dépendent du temps (« En retard », « Modifiée il y a… ») sont calculées **au rendu** (`useToday`, `useNow`), jamais stockées par un updater.
 
+## Pipeline photo
+
+Chaque fichier importé est traité **dans le navigateur**, un à la fois, sans dépendance ni Web Worker (`src/features/photos/processing/`). Seule la version allégée est conservée ; le fichier d'origine ne l'est pas.
+
+```mermaid
+flowchart LR
+    F[Fichier choisi, déposé ou collé] --> C{Contrôles}
+    C -- HEIC/HEIF, non-image, > 40 Mo --> X[Ignoré + raison en français]
+    C --> E[EXIF : DateTimeOriginal<br/>128 premiers Ko, parseur maison]
+    E --> D["Décodage + orientation<br/>createImageBitmap(imageOrientation: 'from-image')"]
+    D -- échec --> X
+    D --> R[Redimensionnement<br/>2000 px max, jamais d'agrandissement]
+    R --> J1[Encodage JPEG 0,82<br/>fond blanc sous la transparence]
+    D --> T[Miniature 480 px max]
+    T --> J2[Encodage JPEG 0,7]
+    J1 & J2 --> S[(photosRepo.addPhoto<br/>table photos)]
+    D -. close dans un finally .-> Z[ImageBitmap libéré]
+```
+
+| Variante         | Grand côté max. | Qualité JPEG | Usage                                  |
+| ---------------- | --------------- | ------------ | -------------------------------------- |
+| Image principale | 2000 px         | 0,82         | Visionneuse, rapport Word              |
+| Miniature        | 480 px          | 0,7          | Galerie (seules les miniatures y sont) |
+
+**Pourquoi ces valeurs** : une photo pleine largeur dans un rapport A4 (≈ 17 cm à 300 dpi) demande environ 2000 px, donc elle reste nette à l'impression. En JPEG 0,82, une photo de téléphone de 12 Mpx (3 à 6 Mo) descend à **300–600 Ko environ**, soit 5 à 10 fois moins d'espace dans le navigateur. La miniature à 480 px reste nette dans une grille de 4 à 5 colonnes, même sur écran haute densité.
+
+- **Encodage** : `OffscreenCanvas.convertToBlob`, ou `<canvas>.toBlob` en repli. Les PNG et WebP sont aplatis sur fond blanc puis convertis en JPEG.
+- **Rotation** (`rotateBlob90`) : l'image principale est redessinée tournée de 90°, puis image et miniature sont réencodées (largeur et hauteur échangées).
+- **Import** (`runPhotoImport`) : ordre par date EXIF, sinon par nom en tri naturel. Traitement séquentiel. Un échec n'arrête pas les autres. Un espace plein (`StorageQuotaError`) arrête proprement l'import. L'annulation prend effet après la photo en cours.
+- **Codec injectable** : `processPhoto(file, codec)` et `rotateBlob90(blob, dir, codec)` reçoivent décodeur et encodeur. Les tests unitaires (jsdom, sans canvas) vérifient la logique, et Playwright vérifie le vrai traitement dans Chromium.
+- **Métadonnées** (légende, catégorie) : enregistrées directement par `photosRepo` via `usePhotoMetaSaver`, 600 ms après la frappe et à la perte du focus, car les photos ne passent pas par le brouillon de la visite.
+- **Affichage** : miniatures seulement dans la grille (`loading="lazy"`, `content-visibility: auto`), image principale seulement dans la visionneuse, qui précharge la suivante. `useObjectUrl` partage une URL `blob:` par Blob et ne la révoque qu'un instant après son dernier usage. Sans ce délai, passer de la photo préchargée à la photo affichée révoquait une URL en cours de chargement.
+- **Cache Dexie `immutable`** : les résultats des requêtes réactives sont figés au lieu d'être copiés. C'est moins coûteux avec de nombreuses photos, et toute mutation accidentelle d'une donnée lue lève une erreur.
+
 ## Composants d'interface
 
 Les composants sont ceux de shadcn/ui (même API, mêmes styles). Seuls `Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` sont réimplémentés sur les **éléments natifs** du navigateur (`<dialog>`, attribut `popover`, positionnement par ancre CSS, motif ARIA des onglets) plutôt que sur Radix. Voir `DECISIONS.md`, n° 13. Le tri utilise un `<select>` natif. Les suggestions de saisie utilisent `<datalist>`, et les zones de texte s'agrandissent avec leur contenu grâce à `field-sizing: content` (sans JavaScript).

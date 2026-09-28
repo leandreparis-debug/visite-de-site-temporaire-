@@ -182,6 +182,7 @@ export const FIELD_LABELS: Readonly<Record<string, string>> = {
   height: 'Hauteur',
   caption: 'Légende',
   takenAt: 'Date de prise de vue',
+  originalName: 'Nom du fichier',
   sourceType: 'Source',
   x: 'Position horizontale',
   y: 'Position verticale',

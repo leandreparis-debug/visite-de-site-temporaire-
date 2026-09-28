@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 4)** : gestion des visites (liste, recherche, création, duplication, suppression), enregistrement automatique, et onglets « Informations générales » et « Notes » opérationnels. Les onglets photos, plan, DO, projets et rapport arriveront aux étapes suivantes.
+**État actuel (étape 5)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes » et « Photos » opérationnels. Les onglets plan, DO, projets et rapport arriveront aux étapes suivantes.
 
 ---
 
@@ -48,6 +48,18 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
 - **Sections** : « Ajouter une section » crée une section et place le curseur sur son titre (des zones types sont proposées). `Tab` passe ensuite au texte. Les boutons permettent de réordonner, replier ou déplier (« Tout replier » pour une vue d'ensemble) et supprimer. Une section contenant du texte demande confirmation avant suppression.
 - **Astuce des puces** : commencez une ligne par « - » (tiret puis espace). Elle deviendra une puce dans le rapport Word.
 - **Points d'attention et actions** : taper le point, puis `Entrée` (priorité moyenne par défaut ; responsable et échéance facultatifs). Le tableau affiche d'abord les points non terminés, par priorité puis par échéance. Un badge **« En retard »** signale une échéance dépassée. « Masquer les points terminés » allège la liste.
+
+### Photos
+
+- **Ajouter** : bouton « Ajouter des photos », **glisser-déposer** les fichiers sur l'onglet, ou **Ctrl+V** pour coller une capture d'écran. Plusieurs photos à la fois : elles sont rangées par date de prise de vue (sinon par nom de fichier). Une barre indique la progression et permet d'annuler.
+- **Formats acceptés** : JPEG, PNG, WebP (40 Mo maximum par fichier). Les photos sont **automatiquement allégées** (2000 px, ~300 à 600 Ko) et remises dans le bon sens. **La photo d'origine n'est pas conservée** : seule la version allégée est stockée, gardez vos originaux sur le téléphone ou le PC si besoin.
+- **iPhone (HEIC)** : les photos HEIC ne sont pas prises en charge. Sur l'iPhone : **Réglages › Appareil photo › Formats › « Le plus compatible »** (les nouvelles photos seront en JPEG), ou exportez/partagez la photo en JPEG. Les fichiers refusés sont listés avec leur raison (bouton « Détails » du message de fin d'import).
+- **Légende et catégorie** : directement sur chaque photo, ou dans la visionneuse (clic sur la photo). Enregistrées automatiquement.
+- **Raccourcis clavier** :
+  - dans la galerie : `Alt+←` / `Alt+→` déplace la photo qui a le focus, `Ctrl+A` sélectionne toutes les photos affichées, `Ctrl+V` colle une image ;
+  - dans la visionneuse : `←` / `→` pour la photo précédente ou suivante, `Échap` pour fermer.
+- **Réorganiser** : glisser-déposer une photo, les raccourcis ci-dessus, ou le menu « ⋯ » (déplacer au début ou à la fin, pivoter, supprimer).
+- **Sélection multiple** : cocher les photos pour changer leur catégorie ou les supprimer d'un coup. Si une photo porte un repère sur le plan, la confirmation l'indique (« 2 repères seront retirés du plan (n°4, n°9) »). Les numéros de repère ne sont jamais réattribués.
 
 L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
 
@@ -130,11 +142,14 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 │   ├── DATA_MODEL.md          # Modèle de données (entités, règles, diagramme)
 │   └── DECISIONS.md           # Choix structurants
 ├── scripts/
-│   └── check-single-file.mjs  # Contrôle du build (fichier unique, aucune ressource externe)
+│   ├── check-single-file.mjs  # Contrôle du build (fichier unique, aucune ressource externe)
+│   └── make-photo-fixtures.mjs # Génère tests/fixtures/photos (JPEG EXIF II/MM, orientation 6, PNG…)
 ├── tests/e2e/
 │   ├── smoke.spec.ts          # Ouverture de dist/index.html en file:// (console, réseau)
 │   ├── storage.spec.ts        # IndexedDB + Blob persistants après rechargement en file://
-│   └── visits.spec.ts         # Parcours complet : créer, renommer, recharger, dupliquer, supprimer
+│   ├── visits.spec.ts         # Parcours complet : créer, renommer, recharger, dupliquer, supprimer
+│   ├── general-notes.spec.ts  # Informations générales, participants, notes, points d'attention
+│   └── photos.spec.ts         # Import de vrais fichiers, EXIF, orientation, visionneuse, rotation…
 └── src/
     ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
@@ -154,6 +169,7 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── general/           # Onglet Informations générales : GeneralTab, participantOps,
     │   │                      # visitInfoOps, suggestions (datalist)
     │   ├── notes/             # Onglet Notes : sections, trames, points d'attention (Ops + View)
+    │   ├── photos/            # Onglet Photos : galerie, visionneuse, import, processing/ (EXIF, redimensionnement)
     │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
     │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
     │   ├── photos/            # photosRepo, usePhotos
