@@ -15,7 +15,7 @@ Cela supprime l'hébergement, l'authentification et la maintenance d'une infrast
 ## 3. IndexedDB pour le stockage (étape 2)
 
 Les visites, notes et photos seront stockées dans IndexedDB, disponible en `file://` dans Chrome et Edge.
-`localStorage` est trop petit (≈ 5 Mo, chaînes uniquement) pour des photos ; IndexedDB stocke des `Blob` et des volumes importants. Contrepartie : les données sont liées au navigateur et au poste — d'où l'export/import de fichiers de visite prévu plus tard.
+`localStorage` est trop petit (≈ 5 Mo, chaînes uniquement) pour des photos ; IndexedDB stocke des `Blob` et des volumes importants. Contrepartie : les données sont liées au navigateur et au poste. L'export/import de visites, prévu à l'origine, a été abandonné pour la V1 (voir 29).
 
 ## 4. Pas d'IA
 
@@ -137,7 +137,34 @@ C'est la pratique des factures et devis français, et c'est la seule façon de g
 « Copier pour Excel » place dans le presse-papiers un tableau séparé par des tabulations, que l'on colle dans Excel avec Ctrl+V. Si le presse-papiers est indisponible, un fichier CSV est téléchargé (séparateur `;`, BOM UTF-8 pour les accents, fins de ligne CRLF).
 Les montants sont écrits sans symbole ni séparateur de milliers, avec une virgule décimale (`12500,50`), et les taux en pourcentage (`20`, `5,5`) : Excel en français les reconnaît comme des nombres, additionnables avec `=SOMME`. Générer un vrai `.xlsx` demanderait une bibliothèque de plusieurs centaines de Ko (ou un format zippé écrit à la main) pour un gain faible : les Property Managers retravaillent de toute façon le tableau dans leur propre classeur.
 
-## 28. Outillage (étape 1)
+## 28. `docx` pour générer le rapport Word (étape 10)
+
+Le rapport est produit par la bibliothèque `docx` (version 9), dans le navigateur, sans serveur. Elle est incluse dans le fichier unique mais **évaluée seulement à la première génération** (import dynamique intégré au bundle, comme pdf.js). Un test de faisabilité (`docx-feasibility.spec.ts`) vérifie la génération en `file://` sous la CSP de production.
+C'est la bibliothèque de référence pour écrire du .docx en JavaScript : API déclarative (paragraphes, tableaux, sections, en-têtes, images), maintenue, sans dépendance réseau. Elle pèse ≈ 0,43 Mo avec JSZip, ce qui garde le fichier sous le plafond de 4 Mo (≈ 2,83 Mo). Écrire le XML OOXML à la main aurait été plus léger mais bien plus fragile (un document mal formé déclenche la « réparation » de Word). Le rapport est construit en deux couches : un **modèle pur** (`buildReportModel`, testé, sans `docx`) qui porte toute la logique, puis un **rendu mécanique** (`renderReportDocx`).
+
+## 29. Pas d'export ni d'import de visite en V1 (étape 10)
+
+L'étape prévue d'export / import de fichiers de visite est abandonnée pour la V1. Les visites vivent uniquement dans le navigateur du poste ; **le rapport Word est la seule archive durable**.
+Risque accepté : perte des visites en cas de changement de poste, de navigateur, ou si les données de navigation sont vidées. Ce risque est limité pour un outil temporaire, dont chaque visite aboutit de toute façon à un rapport. Mesures compensatoires :
+
+- bandeau d'information dans la liste des visites (fermable, mémorisé) : « Vos visites sont enregistrées dans ce navigateur, sur ce poste uniquement… » ;
+- date du dernier rapport affichée sur chaque visite (en-tête et carte de la liste) ;
+- avertissement « Aucun rapport n'a été généré pour cette visite » avant une suppression ;
+- messages d'espace plein et d'erreur de stockage qui orientent vers la génération des rapports ;
+- demande de stockage persistant au démarrage (limite la purge automatique par le navigateur) ;
+- rubrique « Vos données » du guide (que faire en cas de changement de poste).
+
+## 30. Pas de table des matières par champ dans le rapport (étape 10)
+
+Le rapport n'a pas de table des matières. Les rubriques utilisent les styles de titres natifs de Word (Titre 1, Titre 2) : le **volet de navigation** de Word les affiche et permet d'y accéder.
+Une table des matières Word est un champ (`TOC`) calculé par Word : générée hors de Word, elle est vide ou fausse tant que l'utilisateur n'a pas accepté de « mettre à jour les champs » à l'ouverture. Ce message inquiète et la table serait fausse si on le refuse. Seuls les champs de numérotation des pages (« Page X / Y ») sont utilisés : Word les met à jour seul, sans question.
+
+## 31. Plans annotés en sections paysage (étape 10)
+
+Chaque plan annoté occupe une **section Word en A4 paysage**, avec l'image en pleine largeur puis le tableau de ses repères ; le reste du rapport est en portrait.
+Les plans d'entrepôt sont presque toujours plus larges que hauts (formats A3 / A1 paysage) : en portrait, ils seraient réduits de moitié et illisibles. Une section par plan permet aussi à chaque plan de commencer sur une nouvelle page. La planche photos utilise des tableaux sans bordure à lignes insécables (2 ou 6 photos par page) pour qu'aucune photo ne soit coupée entre deux pages.
+
+## 32. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.

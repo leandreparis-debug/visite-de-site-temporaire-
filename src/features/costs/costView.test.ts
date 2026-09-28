@@ -201,7 +201,7 @@ describe('Excel export', () => {
     const tsv = costsToTsv([tricky, costs[5]!], projects)
     const lines = tsv.split('\r\n')
     expect(lines[0]).toBe(COST_EXPORT_HEADERS.join('\t'))
-    expect(tsv.startsWith('﻿')).toBe(false)
+    expect(tsv.startsWith('\uFEFF')).toBe(false)
     expect(tsv).toBe(
       [
         COST_EXPORT_HEADERS.join('\t'),
@@ -224,7 +224,7 @@ describe('Excel export', () => {
 
   it('builds a CSV with BOM, ";" separator and escaped cells', () => {
     const csv = costsToCsv([tricky], projects)
-    expect(csv.startsWith('﻿')).toBe(true)
+    expect(csv.startsWith('\uFEFF')).toBe(true)
     const [header, row] = csv.slice(1).split('\r\n')
     expect(header).toBe(COST_EXPORT_HEADERS.join(';'))
     expect(row).toBe(

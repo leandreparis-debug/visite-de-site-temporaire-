@@ -19,8 +19,12 @@ export const REPORT_IMAGE_SETTINGS: Record<
   light: { photoMaxSide: 1000, photoJpegQuality: 0.75, planMaxSide: 2000 },
 }
 
-/** Size factor of a JPEG re-encoded at each quality, relative to the stored 0.82. */
-const JPEG_QUALITY_FACTOR: Record<ReportQuality, number> = { standard: 0.95, light: 0.82 }
+/**
+ * Size factor of a JPEG re-encoded at each quality, relative to the stored
+ * 0.82 (beyond the pixel ratio). Calibrated on the load test (60 photos of
+ * 12 Mpx): the size drops faster than the quality.
+ */
+const JPEG_QUALITY_FACTOR: Record<ReportQuality, number> = { standard: 0.72, light: 0.45 }
 /** Average bytes per pixel of an annotated plan in PNG (line drawings compress well). */
 const PLAN_PNG_BYTES_PER_PIXEL = 0.15
 /** XML, styles, logo, headers: fixed part of the file. */

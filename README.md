@@ -1,26 +1,29 @@
 # Comptes rendus de visite — Carrefour Property
 
-Outil **autonome et temporaire** pour les Property Managers de Carrefour Property : il servira à préparer les comptes rendus après les visites techniques d'entrepôts et les réunions importantes (notes, photos, plan avec pins, suivi Dommages-Ouvrage, assurances, projets, coûts, export Word).
+Outil **autonome et temporaire** pour les Property Managers de Carrefour Property : il sert à préparer les comptes rendus après les visites techniques d'entrepôts et les réunions importantes (notes, photos, plan avec repères, suivi Dommages-Ouvrage, assurances, projets, coûts) et à générer le **rapport Word**.
 
 - Un **seul fichier `index.html`**, à ouvrir d'un double-clic dans Chrome ou Edge.
 - Aucune installation, aucun serveur, aucune connexion réseau requise.
 - Pas d'IA : les rapports sont générés par gabarits, **aucune donnée ne sort du poste**.
 
-> ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
-> Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
+> ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB).
+> Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. La V1 n'a pas d'export de visite : **le rapport Word est la seule archive durable**. Générez-le pour chaque visite terminée.
 
-**État actuel (étape 8)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes », « Photos », « Plan », « DO & assurances » et « Projets & coûts » opérationnels. L'onglet « Rapport » arrivera à une étape suivante.
+**Version 1.0.0** : gestion des visites, enregistrement automatique, tous les onglets (informations générales, notes, photos, plan, DO & assurances, projets & coûts) et **génération du rapport Word**. Aide intégrée (bouton « Aide ») et [guide utilisateur](docs/GUIDE_UTILISATEUR.md). Historique : [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
-## Diffuser l'outil (utilisateurs)
+## Diffuser une nouvelle version
 
-1. Un développeur produit le fichier : `npm run build` puis `npm run check:single`.
-2. Il envoie **uniquement `dist/index.html`** (mail, Teams, partage réseau…). Le fichier peut être renommé, par exemple `comptes-rendus-visite.html`.
-3. L'utilisateur l'enregistre où il veut (Bureau, Documents…) et l'ouvre **d'un double-clic dans Chrome ou Edge**.
+1. Mettre à jour le numéro de version dans `package.json` et le [`CHANGELOG.md`](CHANGELOG.md).
+2. Lancer **`npm run release`**. Le script enchaîne toutes les vérifications (typecheck, lint, tests unitaires, build, `check:single`, tests e2e) et s'arrête à la première erreur. Il prépare ensuite le dossier `release/` (ignoré par git) :
+   - `CR-Visites-Carrefour-Property-v1.0.0.html` : l'outil, en un seul fichier ;
+   - `GUIDE_UTILISATEUR.md` : le guide, identique à l'aide intégrée ;
+   - `LISEZMOI.txt` : 7 lignes pour démarrer (ouvrir le fichier, navigateur, aide).
+3. Envoyer ces fichiers aux Property Managers (mail, Teams, partage réseau).
+4. Chaque utilisateur **remplace l'ancien fichier HTML par le nouveau** (le nom et le dossier peuvent changer) et l'ouvre d'un double-clic dans **le même navigateur** qu'avant.
 
-Le fichier fonctionne hors réseau et ne dépend d'aucun autre fichier.
-Les données sont liées **au navigateur et au profil utilisateur** du poste : ouvrir le fichier dans Chrome puis dans Edge donne deux espaces de données distincts. Utilisez toujours le même navigateur.
+**Les données sont conservées** : toutes les pages ouvertes en `file://` dans un même profil de navigateur partagent le même stockage IndexedDB, quel que soit le nom ou l'emplacement du fichier. La nouvelle version retrouve donc les visites existantes ; si le format des données évolue, Dexie applique les migrations à l'ouverture. Ce scénario est couvert par `tests/e2e/update.spec.ts` (deux builds successifs, même profil). En revanche, ouvrir le fichier dans un **autre** navigateur (Edge au lieu de Chrome) ou sur un autre poste donne un espace vide.
 
 ---
 
@@ -28,13 +31,13 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
 
 ### Premier parcours
 
-1. **Ouvrir l'outil** : double-clic sur le fichier `index.html`, dans Chrome ou Edge.
+1. **Ouvrir l'outil** : double-clic sur le fichier `CR-Visites-Carrefour-Property-v1.0.0.html`, dans Chrome ou Edge. Le bouton **« Aide »**, en haut à droite, ouvre le guide utilisateur.
 2. **Créer une visite** : bouton **« Nouvelle visite »** (ou « Créer ma première visite »). Choisir le type (visite technique ou réunion), saisir le titre, la date (aujourd'hui par défaut) et le nom du site, puis **« Créer la visite »** ou la touche Entrée. La visite s'ouvre.
 3. **Modifier le titre** : cliquer sur le titre, le corriger, puis Entrée pour valider ou Échap pour annuler.
 4. **Rien à enregistrer à la main** : les modifications sont enregistrées automatiquement. L'indicateur en haut à droite affiche « Modifications en cours… », « Enregistrement… », puis « Enregistré ». En cas de problème, il affiche « Erreur d'enregistrement » avec un bouton **« Réessayer »**.
 5. **Revenir à la liste** : lien **« ← Visites »**. La liste permet de rechercher par titre ou site (les accents et majuscules sont ignorés), de filtrer par type et de trier.
 6. **Reprendre le suivi d'une visite** : menu **« ⋯ »** de la visite, puis **« Dupliquer »**. Le dialogue indique ce qui est repris (site, participants, sinistres DO, assurances, projets, coûts, points d'attention non terminés, plans) et ce qui ne l'est pas (notes, photos, repères). La copie, datée du jour, s'ouvre.
-7. **Supprimer une visite** : menu **« ⋯ »**, puis **« Supprimer »**. La suppression est **définitive** : pensez à exporter la visite avant (export disponible à une étape ultérieure).
+7. **Supprimer une visite** : menu **« ⋯ »**, puis **« Supprimer »**. La suppression est **définitive** : générez le rapport Word avant si vous souhaitez conserver une trace. Le dialogue avertit si aucun rapport n'a été généré pour cette visite.
 
 ### Informations générales
 
@@ -107,9 +110,19 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
   - **Facturé** : facture reçue.
 - **Copier pour Excel** : copie **toutes** les lignes (quels que soient le regroupement et les groupes repliés) ; il suffit de coller dans Excel avec `Ctrl+V`. Les montants arrivent comme des nombres (additionnables avec `=SOMME`), accents compris. Si la copie est impossible (navigateur ou poste restreint), un fichier **CSV** « site - coûts - date.csv » est téléchargé à la place : l'ouvrir avec Excel.
 
+### Rapport Word
+
+- Onglet **« Rapport »** : la liste des rubriques, avec un aperçu (« Photos — 42 photos (3 sans légende) », « Plans — 2 plans, 18 repères »). Décocher une rubrique la retire du rapport ; les rubriques vides sont décochées et marquées « vide ».
+- **Options** : planche photos à **6 par page** (par défaut) ou **2 par page** (grand format), « Uniquement les photos placées sur un plan », qualité des images **Standard** (photos à 1600 px) ou **Allégée** (1000 px, pour un envoi par mail). La **taille estimée** du fichier se met à jour.
+- **Points à vérifier** (en orange, non bloquants) : incohérences de montants DO, photos sans légende, sinistres sans date de déclaration, rédacteur manquant, sections de notes vides. Chaque point mène à l'onglet concerné.
+- **« Générer le rapport Word »** : les dernières modifications sont enregistrées, puis la progression s'affiche (« Préparation des plans… », « Photos 12 / 42… », « Assemblage du document… »). Le fichier **`CR - site - AAAA-MM-JJ.docx`** est téléchargé. En cas d'erreur, un message l'explique avec un bouton **« Réessayer »**.
+- **Contenu** : page de garde (logo, type de compte rendu, titre, site, date, rédacteur), en-tête et pied de page (« Page X / Y ») sur les pages suivantes, puis : 1. Synthèse (alertes en rouge), 2. Informations générales (présents, absents / excusés), 3. Observations par zone (puces pour les lignes « - »), 4. Points d'attention, 5. Plans annotés (une page **paysage** par plan, avec le tableau des repères), 6. Planche photos (aucune photo coupée entre deux pages), 7. Dommages-Ouvrage et assurances (étapes, délais indicatifs), 8. Projets et coûts (totaux par stade, total général).
+- Le document utilise les styles de titres de Word : le **volet de navigation** de Word affiche les rubriques. Il n'y a pas de table des matières (elle obligerait à « mettre à jour les champs » à l'ouverture).
+- La date du dernier rapport s'affiche dans l'en-tête de la visite et sur sa carte dans la liste (« Rapport généré le … »). **Le rapport est la seule copie durable de la visite** : enregistrez-le sur le réseau ou dans le dossier du site.
+
 L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
 
-Le pied de page indique l'espace utilisé dans le navigateur. Il passe en orange au-delà de 80 % du quota.
+Le pied de page indique l'espace utilisé dans le navigateur (en orange au-delà de 80 % du quota : « Espace bientôt plein — générez les rapports puis supprimez d'anciennes visites ») et la version de l'outil (« v1.0.0 — build du JJ/MM/AAAA »).
 
 ---
 
@@ -122,10 +135,19 @@ Limites à connaître :
 - **Propres au navigateur et au poste** : Chrome et Edge ont chacun leur propre stockage, et un autre PC ou un autre profil Windows ne voit pas les mêmes visites.
 - **Effacées si l'utilisateur vide les données du navigateur** (« Effacer les données de navigation » → « Cookies et autres données de site »), ou par une politique de nettoyage du poste.
 - **Pas de navigation privée** : les données y sont supprimées à la fermeture, et IndexedDB peut y être indisponible. L'outil affiche alors « Stockage indisponible ».
-- **Espace limité** : le navigateur accorde un quota (généralement une part importante du disque libre). En cas de dépassement, le message « Espace de stockage du navigateur insuffisant. Exportez puis supprimez d'anciennes visites. » s'affiche.
+- **Espace limité** : le navigateur accorde un quota (généralement une part importante du disque libre). En cas de dépassement, le message « Espace de stockage du navigateur insuffisant. Générez les rapports Word puis supprimez d'anciennes visites. » s'affiche.
 - Au démarrage, l'outil demande au navigateur un stockage **persistant**, pour éviter une purge automatique quand le disque est plein. Le navigateur peut refuser sans prévenir.
 
-➡️ Pour conserver ou transmettre une visite, utiliser l'**export de fichier de visite** (étape 9). Détail du modèle : [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
+➡️ Pour conserver ou transmettre une visite, **générer son rapport Word** (onglet « Rapport »). La liste des visites rappelle ces règles dans un bandeau d'information (fermable). Détail du modèle : [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
+
+## Limites connues de la V1
+
+- **Pas d'export ni d'import de visite** : une visite ne peut pas être transférée vers un autre poste ou un autre navigateur. Le rapport Word est l'archive (voir [`docs/DECISIONS.md`](docs/DECISIONS.md), décision 29).
+- **Données propres au poste et au navigateur** : Chrome et Edge, ou deux profils Windows, ont des stockages distincts. Vider les données de navigation efface les visites.
+- **Photos HEIC (iPhone) non prises en charge** : régler l'iPhone sur « Le plus compatible » ou partager les photos en JPEG.
+- **Chrome et Edge uniquement** (ordinateur) : Firefox, Safari et les mobiles ne sont pas pris en charge.
+- **PDF protégés par mot de passe** non pris en charge pour les plans (exporter le plan en PDF sans protection ou en PNG).
+- Les **délais DO** sont indicatifs et ne tiennent pas compte des clauses du contrat.
 
 ---
 
@@ -157,12 +179,17 @@ npm run dev
 | `npm run test:watch`   | Tests unitaires Vitest en mode surveillance.                              |
 | `npm run test:e2e`     | Build puis tests Playwright sur `dist/index.html` ouvert en `file://`.    |
 | `npm run check:single` | Vérifie que `dist/` ne contient que `index.html`, sans référence externe. |
+| `npm run guide`        | Régénère `docs/GUIDE_UTILISATEUR.md` depuis la source de l'aide intégrée. |
+| `npm run screenshots`  | Build, audit, puis captures 1280 / 1024 px dans `docs/screenshots/`.      |
+| `npm run release`      | Toutes les vérifications, puis le dossier `release/` à diffuser.          |
 
 Vérification complète avant diffusion :
 
 ```bash
 npm run typecheck && npm run lint && npm run test && npm run build && npm run check:single && npm run test:e2e
 ```
+
+(`npm run release` fait exactement cela, puis prépare les fichiers à diffuser.)
 
 ### Remplacer le logo
 
@@ -183,14 +210,20 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 ├── playwright.config.ts       # Tests e2e (Chromium)
 ├── eslint.config.js           # ESLint flat config
 ├── components.json            # Configuration shadcn/ui
+├── CHANGELOG.md               # Historique des versions
 ├── docs/
-│   ├── ARCHITECTURE.md        # Couches, routage par hash, enregistrement automatique
+│   ├── ARCHITECTURE.md        # Couches, routage par hash, enregistrement automatique, rapport Word
 │   ├── DATA_MODEL.md          # Modèle de données (entités, règles, diagramme)
-│   └── DECISIONS.md           # Choix structurants
+│   ├── DECISIONS.md           # Choix structurants
+│   ├── GUIDE_UTILISATEUR.md   # Guide utilisateur (généré : npm run guide)
+│   ├── PERFORMANCE.md         # Mesures (test de charge, génération du rapport)
+│   └── screenshots/           # Captures de chaque écran à 1280 et 1024 px (npm run screenshots)
 ├── scripts/
 │   ├── check-single-file.mjs  # Contrôle du build (fichier unique, aucune ressource externe)
 │   ├── make-photo-fixtures.mjs # Génère tests/fixtures/photos (JPEG EXIF II/MM, orientation 6, PNG…)
-│   └── make-plan-fixtures.mjs  # Génère tests/fixtures/plans (PDF 2 pages, PDF protégé, PNG, PDF corrompu)
+│   ├── make-plan-fixtures.mjs  # Génère tests/fixtures/plans (PDF 2 pages, PDF protégé, PNG, PDF corrompu)
+│   ├── generate-guide.ts      # docs/GUIDE_UTILISATEUR.md depuis src/features/help/guideContent.ts
+│   └── release.ts             # npm run release : vérifications puis dossier release/
 ├── tests/e2e/
 │   ├── smoke.spec.ts          # Ouverture de dist/index.html en file:// (console, réseau)
 │   ├── storage.spec.ts        # IndexedDB + Blob persistants après rechargement en file://
@@ -200,7 +233,14 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 │   ├── plan-feasibility.spec.ts # pdf.js en fil principal, en file:// sous CSP (sonde tests/feasibility)
 │   ├── plan.spec.ts           # Import PDF/PNG, placement, déplacements, plan annoté, erreurs
 │   ├── do-insurance.spec.ts   # Contrats, sinistre DO, délai dépassé, montants, rechargement, duplication
-│   └── projects-costs.spec.ts # Projets, coûts, totaux, regroupements, suppression/annulation, presse-papiers
+│   ├── projects-costs.spec.ts # Projets, coûts, totaux, regroupements, suppression/annulation, presse-papiers
+│   ├── docx-feasibility.spec.ts # docx en file:// sous CSP, chargé au premier usage (sonde)
+│   ├── report.spec.ts         # Rapport Word d'une visite complète : nom, contenu de l'archive, Allégée
+│   ├── update.spec.ts         # Nouvelle version du fichier HTML : les visites sont conservées
+│   ├── audit.spec.ts          # Accessibilité (axe-core) et mise en page à 1280 / 1024 px
+│   ├── load.spec.ts           # Charge : 60 photos 12 Mpx, 2 plans, 40 repères, rapport < 60 s
+│   ├── full-journey.spec.ts   # Visite, rapport, duplication, sinistre avancé, 2e rapport, suppression
+│   └── helpers.ts             # Visite complète remplie par l'interface, surveillance console/réseau
 └── src/
     ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
@@ -227,6 +267,9 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── do/                # Onglet DO & assurances : doClaimOps, doView (étapes, délais, alertes),
     │   │                      # doInsuranceOverview (synthèse), cartes de sinistre, frise des étapes
     │   ├── projects/          # Onglet Projets & coûts : ProjectsCostsTab, projectOps, projectView
+    │   ├── report/            # Rapport Word : model/ (buildReportModel pur, parseNoteContent, estimation),
+    │   │                      # render/ (docx, styles, images), ReportTab, useReportGeneration
+    │   ├── help/              # Aide intégrée : guideContent (source unique du guide), HelpDialog
     │   ├── costs/             # costOps, costView (totaux, groupes, export TSV/CSV), CostsSection
     │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
     │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
@@ -239,6 +282,7 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── dates.ts           # Dates ISO, format français, ajout / écart de jours (UTC)
     │   ├── id.ts              # createId() (UUID v4)
     │   ├── download.ts        # downloadBlob(), safeFileName() (noms de fichiers Windows)
+    │   ├── buildInfo.ts       # Version et date de build (injectées par Vite)
     │   ├── validation.ts      # parseOrThrow() → ValidationError
     │   ├── notify.ts          # notifyError() (toast FR), pluralize()
     │   ├── search.ts          # Recherche insensible aux accents

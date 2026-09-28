@@ -19,7 +19,7 @@ describe('estimateReportSize', () => {
       estimateReportSize({ photos: Array(count).fill(photo), plans: [], quality: 'standard' })
     expect(size(0)).toBe(60_000)
     const one = size(1) - size(0)
-    expect(one).toBeGreaterThan(300_000)
+    expect(one).toBeGreaterThan(200_000)
     expect(one).toBeLessThan(600_000)
     expect(size(10) - size(0)).toBeCloseTo(10 * one, -1)
   })

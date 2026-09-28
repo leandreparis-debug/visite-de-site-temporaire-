@@ -19,7 +19,8 @@
     "test:e2e": "npm run build && playwright test",
     "check:single": "node scripts/check-single-file.mjs",
     "guide": "node scripts/generate-guide.ts",
-    "screenshots": "npm run build && UPDATE_SCREENSHOTS=1 playwright test audit.spec"
+    "screenshots": "npm run build && UPDATE_SCREENSHOTS=1 playwright test audit.spec",
+    "release": "node scripts/release.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
