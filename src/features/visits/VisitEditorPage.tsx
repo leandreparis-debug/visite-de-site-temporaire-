@@ -10,6 +10,8 @@ import { useState } from 'react'
 import { Link } from '@/app/Link'
 import { navigate, type VisitTab } from '@/app/router'
 import { EmptyState } from '@/components/layout/EmptyState'
+import { getDoInsuranceOverview } from '@/features/do/doInsuranceOverview'
+import { DoInsuranceTab } from '@/features/do/DoInsuranceTab'
 import { GeneralTab } from '@/features/general/GeneralTab'
 import { NotesTab } from '@/features/notes/NotesTab'
 import { countPhotos } from '@/features/photos/photosRepo'
@@ -20,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateFr } from '@/lib/dates'
 import { NotFoundError, toUserMessage } from '@/lib/errors'
+import { useToday } from '@/lib/useToday'
 import { InlineEditableTitle } from './InlineEditableTitle'
 import { SaveStatusIndicator } from './SaveStatusIndicator'
 import { useVisitDraft } from './useVisitDraft'
@@ -51,6 +54,7 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
   const { draft, isLoading, update, status, error, flush, discard } = useVisitDraft(visitId)
   const [action, setAction] = useState<VisitAction | null>(null)
   const { data: photoCount } = useLiveResult(() => countPhotos(visitId), `photo-count-${visitId}`)
+  const today = useToday()
 
   if (isLoading) return <EditorSkeleton />
   if (!draft) {
@@ -78,6 +82,7 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
   }
 
   const target = { id: draft.id, title: draft.title }
+  const doOverview = getDoInsuranceOverview(draft, today)
 
   return (
     <div className="space-y-6">
@@ -131,7 +136,15 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
                 ? `${TAB_LABELS[value]} (${photoCount})`
                 : value === 'plan'
                   ? `${TAB_LABELS[value]} (${draft.pins.length})`
-                  : TAB_LABELS[value]}
+                  : value === 'do-insurance'
+                    ? `${TAB_LABELS[value]} (${doOverview.tabCount})`
+                    : TAB_LABELS[value]}
+              {value === 'do-insurance' && doOverview.hasAlert && (
+                <>
+                  <span aria-hidden="true" className="size-2 rounded-full bg-danger" />
+                  <span className="sr-only">— alerte</span>
+                </>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -145,6 +158,8 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
               <PhotosTab visit={draft} />
             ) : value === 'plan' ? (
               <PlanTab visit={draft} update={update} />
+            ) : value === 'do-insurance' ? (
+              <DoInsuranceTab visit={draft} update={update} />
             ) : (
               <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
             )}

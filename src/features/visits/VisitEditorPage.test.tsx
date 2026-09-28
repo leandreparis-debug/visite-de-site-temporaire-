@@ -113,10 +113,10 @@ describe('VisitEditorPage', () => {
       ),
     ).toBeInTheDocument()
 
-    await user.click(within(tablist).getByRole('tab', { name: 'DO & assurances' }))
+    await user.click(within(tablist).getByRole('tab', { name: /^DO & assurances/ }))
     expect(window.location.hash).toBe(`#/visits/${visit.id}/do-insurance`)
     await vi.waitFor(() => {
-      expect(within(tablist).getByRole('tab', { name: 'DO & assurances' })).toHaveAttribute(
+      expect(within(tablist).getByRole('tab', { name: /^DO & assurances/ })).toHaveAttribute(
         'aria-selected',
         'true',
       )

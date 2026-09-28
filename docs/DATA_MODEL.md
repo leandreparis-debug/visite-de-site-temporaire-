@@ -198,6 +198,31 @@ Les photos et les plans (Blob) sont dans leurs propres tables, jamais dans l'obj
 - `width` / `height` : dimensions de cette image. Les coordonnées des repères sont normalisées (0–1) par rapport à elles.
 - `sourceType` : `pdf` ou `image`. Plusieurs plans par visite (bâtiments, niveaux, cellules), ordonnés par `order`.
 
+### Sinistres DO et assurances (étape 7)
+
+**Séquence canonique des étapes** (`DO_STEP_SEQUENCE`, dans `src/features/do/doView.ts`) :
+
+| #   | `type`               | Libellé                                |
+| --- | -------------------- | -------------------------------------- |
+| 1   | `declaration`        | Déclaration du sinistre                |
+| 2   | `acknowledgment`     | Accusé de réception de l'assureur      |
+| 3   | `expert_appointed`   | Désignation de l'expert                |
+| 4   | `expertise`          | Expertise                              |
+| 5   | `preliminary_report` | Rapport préliminaire                   |
+| 6   | `coverage_decision`  | Position de l'assureur sur la garantie |
+| 7   | `compensation_offer` | Proposition d'indemnité                |
+| 8   | `compensation_paid`  | Versement de l'indemnité               |
+| 9   | `repair_works`       | Travaux de réparation                  |
+| 10  | `closed`             | Clôture du dossier                     |
+
+- **Création** : un sinistre déclaré reçoit les 10 étapes, dans cet ordre, au statut `todo`. Au plus une étape par `type`.
+- **Étapes retirables** : une étape non applicable est **supprimée** de `steps` (« Non applicable »). `getMissingStepTypes(claim)` liste les types retirés ; « Rétablir une étape » la réinsère **à sa position canonique** (avant la première étape restante qui la suit dans la séquence), au statut `todo`. L'annulation d'un retrait rétablit l'étape à l'identique (id, statut, date, commentaire).
+- **Statut « Terminé »** : passer une étape à `done` renseigne sa `date` avec la date du jour si elle est vide ; une date existante est conservée.
+- **Étape courante** : première étape non terminée dans l'ordre de la liste. **Progression** : étapes terminées / étapes présentes. **Clôturé** : l'étape `closed` existe et est terminée.
+- **Délais indicatifs** (`computeDoDeadlines`) : date de référence = date de l'étape `acknowledgment`, sinon `declaredAt`, sinon date de l'étape `declaration` ; aucun délai sans l'une d'elles. Position sur la garantie attendue à **référence + 60 jours**, proposition d'indemnité à **référence + 90 jours**, calcul en jours calendaires sur des dates pures (UTC). Alerte (`getDeadlineAlerts`) tant que l'étape correspondante (`coverage_decision`, `compensation_offer`) existe, n'est pas terminée et que le dossier n'est pas clôturé : `overdue` si l'échéance est dépassée, `due_soon` si elle tombe dans 15 jours ou moins (le jour même compris), `ok` sinon. Ces délais sont **indicatifs** (voir `DECISIONS.md`, 23 et 24).
+- **Validité d'un contrat** (`getInsuranceValidity`) : `not_started` si la date de début est future, `unknown` sans date de fin, `expired` si la date de fin est passée, `expiring_soon` si elle tombe dans 90 jours ou moins (la date de fin est le dernier jour couvert : un contrat qui finit aujourd'hui est encore en vigueur), `valid` sinon. Calculée à l'affichage, jamais stockée.
+- **Montants** : `claimedAmountCents` et `compensatedAmountCents`, en centimes, facultatifs. Un montant indemnisé supérieur au montant réclamé est un avertissement, pas une erreur.
+
 ### Cohérence
 
 Erreurs bloquantes (validation Zod, messages en français) :
@@ -213,13 +238,13 @@ Avertissements non bloquants (`getVisitWarnings(visit)`) : montant indemnisé su
 
 `duplicateVisit(id)` crée une nouvelle visite **datée du jour**, titrée « Copie — {titre} » :
 
-| Repris                                                       | Non repris                 |
-| ------------------------------------------------------------ | -------------------------- |
-| Site                                                         | Sections de notes          |
-| Participants (tous remis à « absent »)                       | Photos                     |
-| Sinistres DO (avec leurs étapes), assurances, projets, coûts | Repères (pins)             |
-| Points d'attention **non traités** (`status` ≠ `done`)       | Points d'attention traités |
-| Plans (copie des fichiers)                                   |                            |
+| Repris                                                                      | Non repris                 |
+| --------------------------------------------------------------------------- | -------------------------- |
+| Site                                                                        | Sections de notes          |
+| Participants (tous remis à « absent »)                                      | Photos                     |
+| Sinistres DO (étapes, statuts, dates, montants), assurances, projets, coûts | Repères (pins)             |
+| Points d'attention **non traités** (`status` ≠ `done`)                      | Points d'attention traités |
+| Plans (copie des fichiers)                                                  |                            |
 
 Tous les identifiants des sous-objets sont régénérés, `nextPinNumber` repart à 1 (aucun repère copié), et `cost.projectId` est remappé vers le nouvel identifiant du projet. L'opération se fait dans une seule transaction.
 

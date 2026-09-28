@@ -84,3 +84,8 @@ if (typeof globalThis.ResizeObserver !== 'function') {
     disconnect(): void {}
   }
 }
+
+// Scrolling (summary banner of the "DO & assurances" tab).
+if (typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => undefined
+}

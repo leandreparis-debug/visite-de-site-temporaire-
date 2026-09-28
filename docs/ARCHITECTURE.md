@@ -92,7 +92,7 @@ Toute fonction passée à `update` peut être exécutée **plusieurs fois** : au
 - **Aucun `createId()`, `Date.now()`, `new Date()`, `todayIso()` ou `Math.random()` dans un updater.** Les identifiants et les dates sont calculés **dans le gestionnaire d'événement**, puis passés en argument.
 - La logique de modification vit dans des modules d'opérations purs et testés (`src/features/*/…Ops.ts`). Les composants se contentent d'appeler `update((v) => addParticipant(v, participant))`.
 - Ne jamais muter la visite reçue : retourner de nouveaux objets. Les tests appliquent chaque opération à une visite **profondément gelée** (`deepFreeze`).
-- ESLint interdit, dans les fichiers `*Ops.ts`, l'import de `@/lib/id`, de `todayIso` et `nowIso`, ainsi que `Date.now()`, `new Date()`, `Math.random()` et `crypto.*`.
+- ESLint interdit, dans les fichiers `*Ops.ts` et `*View.ts`, l'import de `@/lib/id`, de `todayIso` et `nowIso`, ainsi que `Date.now()`, `new Date()`, `Math.random()` et `crypto.*`.
 
 ✅ Correct : l'identifiant est généré une seule fois, dans le gestionnaire.
 
@@ -111,7 +111,7 @@ update((v) => addParticipant(v, { id: createId(), name: entry.name }))
 
 Ici, l'updater est exécuté une fois pour l'affichage, puis de nouveau à la sauvegarde. Chaque exécution produit un nouvel identifiant : le participant affiché n'a pas le même id que celui enregistré. Les actions suivantes (modifier, supprimer, « Annuler ») visent alors un id qui n'existe pas en base. En cas d'erreur puis de nouvelle tentative, un nouvel id serait encore généré. Même problème avec une date : « aujourd'hui » calculé dans l'updater changerait si la sauvegarde avait lieu après minuit.
 
-Les valeurs d'affichage qui dépendent du temps (« En retard », « Modifiée il y a… ») sont calculées **au rendu** (`useToday`, `useNow`), jamais stockées par un updater.
+Les valeurs d'affichage qui dépendent du temps (« En retard », « Modifiée il y a… », validité d'un contrat, délais DO) sont calculées **au rendu** (`useToday`, `useNow`), jamais stockées par un updater. Les modules de calcul d'affichage (`*View.ts` : `attentionPointView`, `insuranceView`, `doView`) reçoivent « aujourd'hui » **en argument** : ils ne lisent jamais l'horloge, ce qui les rend testables à date fixe et réutilisables tels quels par le rapport Word.
 
 ## Pipeline photo
 
@@ -184,6 +184,23 @@ flowchart TD
     E & F --> G["update(v => placePhotoOnPlan(v, …).visit)<br/>fonction pure, rejouée par l'autosave"]
     G --> H["Toast « Repère n°X ajouté » / « déplacé »"]
 ```
+
+## DO & assurances
+
+Toute la logique est dans des modules purs, sans React, réutilisés par l'onglet et, à l'étape 10, par le rapport Word :
+
+| Module                                          | Rôle                                                                                   |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `insurance/insuranceView.ts`                    | Validité d'un contrat, libellé du badge, compteurs, ordre d'affichage                  |
+| `insurance/insuranceOps.ts`                     | Ajouter, modifier, supprimer / réinsérer un contrat                                    |
+| `do/doView.ts`                                  | Séquence des étapes, progression, étape courante, délais indicatifs, alertes, synthèse |
+| `do/doClaimOps.ts`                              | Déclarer un sinistre (10 étapes), modifier, statut d'étape, retirer / rétablir         |
+| `do/doInsuranceOverview.ts`                     | Bandeau de synthèse et indicateur de l'onglet (« DO & assurances (2) » + pastille)     |
+| `lib/dates.ts` (`addDaysIso`, `daysBetweenIso`) | Calculs de jours en UTC sur des dates pures (aucun décalage à l'heure d'été)           |
+
+- `createDoClaim` reçoit les **10 identifiants d'étapes**, générés dans le gestionnaire ; `setStepStatus` reçoit la date du jour (`todayIso()` appelé dans le gestionnaire) pour renseigner la date d'une étape passée à « Terminé ».
+- Les montants passent par `DraftAmountInput` (`components/form`) : saisie libre, envoi de chaque valeur valide (`parseEurosInput`), erreur en ligne sinon, et retour à la valeur d'avant la saisie à la perte du focus. Une saisie invalide n'est jamais envoyée : elle ne bloque pas l'enregistrement.
+- Le repli d'un sinistre clôturé est un état local de la carte (non enregistré).
 
 ## Composants d'interface
 

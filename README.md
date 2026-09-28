@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 6)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes », « Photos » et « Plan » opérationnels. Les onglets DO, projets et rapport arriveront aux étapes suivantes.
+**État actuel (étape 7)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes », « Photos », « Plan » et « DO & assurances » opérationnels. Les onglets projets et rapport arriveront aux étapes suivantes.
 
 ---
 
@@ -78,6 +78,20 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
   - zone du plan (après un clic ou `Tab`) : `+` / `-` pour zoomer, flèches pour déplacer le plan, `0` pour ajuster, `Entrée` pour placer la photo choisie ;
   - repère (atteint avec `Tab`, dans l'ordre des numéros) : flèches pour le déplacer de 0,5 %, `Maj` + flèches pour 5 %, `Entrée` pour ouvrir sa bulle, `Suppr` pour le retirer.
 - **Plan annoté** : menu du plan, puis « Télécharger le plan annoté (PNG) ». L'image contient le plan, les repères numérotés en couleur et une légende. Le fichier est nommé « site - plan - date.png ». C'est cette image qui figurera dans le rapport Word.
+
+### DO & assurances
+
+- **Bandeau de synthèse** en haut de l'onglet, par exemple « 2 sinistres en cours · 1 délai dépassé · 3 contrats dont 1 expire bientôt ». En **rouge** : délai dépassé ou contrat expiré ; en **orange** : délai à 15 jours ou moins, contrat qui expire dans 90 jours ou moins. Un clic sur un élément fait défiler jusqu'à la section. L'onglet affiche le nombre de sinistres en cours, avec une **pastille rouge** en cas de délai dépassé ou de contrat expiré.
+- **Contrats d'assurance** : saisir le type, l'assureur (obligatoire, suggestions issues des autres visites), le n° de police et la date de fin, puis `Entrée`. Tout se modifie ensuite dans le tableau. Badge de validité : « Valide », « Expire dans 23 j » (orange), « Expiré » (rouge), « Pas encore en vigueur », « Échéance non renseignée ». Les contrats expirés ou bientôt expirés apparaissent en premier.
+- **Déclarer un sinistre** : bouton « Déclarer un sinistre » (description obligatoire ; l'assureur du contrat DO est proposé en premier). Le sinistre reçoit les 10 étapes standard, de la déclaration à la clôture.
+- **Suivre les étapes** : pour chaque étape, statut (À faire, En cours, Terminé), date et commentaire. Passer une étape à « Terminé » renseigne la date du jour si elle est vide. L'étape courante est mise en évidence. « Non applicable » retire une étape (avec « Annuler ») ; « Rétablir une étape », sous la frise, la remet à sa place.
+- **Montants** : réclamé et indemnisé, saisis au format français (« 12 500,50 »). Une saisie invalide est signalée et le champ reprend sa valeur précédente en quittant la case. Un montant indemnisé supérieur au montant réclamé est signalé en orange.
+- **Délais** : l'encadré de chaque sinistre indique la date de référence et les deux échéances de l'assureur (position sur la garantie à 60 jours, proposition d'indemnité à 90 jours), par exemple « Position sur la garantie attendue avant le 11/05/2026 — dépassé de 12 j ». La date de référence est celle de l'**accusé de réception** si elle est renseignée, sinon la date de déclaration.
+
+  > ⚠️ **Ces délais sont indicatifs** (art. L242-1 du Code des assurances) : ils ne tiennent pas compte des prorogations ni des clauses du contrat. Vérifiez-les toujours sur le contrat et les courriers de l'assureur.
+
+- **Suivre un sinistre sur plusieurs visites** : à la visite suivante, **dupliquer** la visite (menu « ⋯ », « Dupliquer »). La copie reprend les sinistres (étapes, statuts, dates, montants) et les contrats ; il suffit d'avancer les étapes sur la copie. La visite d'origine reste inchangée et garde l'état du dossier à sa date.
+- Un sinistre **clôturé** est replié sur une ligne de résumé ; la flèche à gauche le déplie.
 
 L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
 
@@ -170,7 +184,8 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 │   ├── general-notes.spec.ts  # Informations générales, participants, notes, points d'attention
 │   ├── photos.spec.ts         # Import de vrais fichiers, EXIF, orientation, visionneuse, rotation…
 │   ├── plan-feasibility.spec.ts # pdf.js en fil principal, en file:// sous CSP (sonde tests/feasibility)
-│   └── plan.spec.ts           # Import PDF/PNG, placement, déplacements, plan annoté, erreurs
+│   ├── plan.spec.ts           # Import PDF/PNG, placement, déplacements, plan annoté, erreurs
+│   └── do-insurance.spec.ts   # Contrats, sinistre DO, délai dépassé, montants, rechargement, duplication
 └── src/
     ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
@@ -182,8 +197,8 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     ├── assets/logo/           # Logo Carrefour Property (provisoire, à remplacer)
     ├── components/
     │   ├── ui/                # Composants shadcn/ui (dialog, tabs, dropdown-menu : version native)
-    │   ├── form/              # DraftInput/DraftTextarea (champs liés au brouillon), SegmentedControl,
-    │   │                      # NativeSelect, IconButton
+    │   ├── form/              # DraftInput/DraftTextarea/DraftAmountInput (champs liés au brouillon),
+    │   │                      # SegmentedControl, NativeSelect, IconButton
     │   ├── brand/BrandLogo.tsx
     │   └── layout/            # AppHeader, AppFooter (espace utilisé), EmptyState
     ├── features/              # Code métier, un dossier par fonctionnalité
@@ -193,6 +208,9 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── photos/            # Onglet Photos : galerie, visionneuse, import, processing/ (EXIF, redimensionnement)
     │   ├── plan/              # Onglet Plan : PlanCanvas (zoom, repères), pinOps, viewport, plan annoté,
     │   │                      # import/ (pdf.js en fil principal, images)
+    │   ├── insurance/         # Contrats : insuranceOps, insuranceView (validité), InsurancesSection
+    │   ├── do/                # Onglet DO & assurances : doClaimOps, doView (étapes, délais, alertes),
+    │   │                      # doInsuranceOverview (synthèse), cartes de sinistre, frise des étapes
     │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
     │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
     │   ├── photos/            # photosRepo, usePhotos
@@ -201,7 +219,7 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── db/                # db.ts (Dexie), storage.ts (quota, persistance), meta.ts, useLiveResult
     │   ├── errors.ts          # Erreurs typées + toUserMessage()
     │   ├── money.ts           # Centimes, TVA, saisie et affichage en euros
-    │   ├── dates.ts           # Dates ISO, format français
+    │   ├── dates.ts           # Dates ISO, format français, ajout / écart de jours (UTC)
     │   ├── id.ts              # createId() (UUID v4)
     │   ├── validation.ts      # parseOrThrow() → ValidationError
     │   ├── notify.ts          # notifyError() (toast FR), pluralize()

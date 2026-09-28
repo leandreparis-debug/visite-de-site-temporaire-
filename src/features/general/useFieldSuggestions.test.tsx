@@ -40,6 +40,21 @@ describe('field suggestions', () => {
     expect(suggestions.companies).toEqual(['Carrefour Property'])
   })
 
+  it('suggests the insurers of contracts and DO claims, and the brokers', () => {
+    const visits = [
+      makeFullVisit({
+        id: 'v1',
+        insurances: [{ id: 'i', type: 'multirisque', insurer: 'AXA', broker: 'Courtage SA' }],
+        doClaims: [{ id: 'c', insurer: ' axa ', description: 'X', steps: [] }],
+      }),
+      makeFullVisit({ id: 'v2' }),
+    ]
+    const suggestions = computeFieldSuggestions(visits)
+    // Two uses each: alphabetical order.
+    expect(suggestions.insurers).toEqual(['Assureur SA', 'AXA'])
+    expect(suggestions.brokers).toEqual(['Courtage SA'])
+  })
+
   it('skips the visit being edited', () => {
     const visits = [makeFullVisit({ id: 'current', author: 'Moi' }), makeFullVisit({ id: 'other' })]
     expect(computeFieldSuggestions(visits, 'current').authors).not.toContain('Moi')

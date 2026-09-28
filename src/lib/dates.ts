@@ -62,6 +62,39 @@ export function formatDateShortFr(isoDate: string): string {
   return `${day}/${month}/${year}`
 }
 
+const DAY_MS = 86_400_000
+
+/**
+ * Adds `days` (possibly negative) to a calendar date. Computed in UTC on the
+ * pure date, so daylight-saving changes never shift the result by one day.
+ * @example addDaysIso('2026-01-30', 30) // "2026-03-01"
+ * @returns the input unchanged if it is not a valid ISO date.
+ */
+export function addDaysIso(isoDate: string, days: number): string {
+  const parts = parseIsoDate(isoDate)
+  if (!parts) return isoDate
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days))
+  const y = String(date.getUTCFullYear()).padStart(4, '0')
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/**
+ * Number of days from `from` to `to` (negative when `to` is earlier), on pure
+ * calendar dates (UTC, no time-zone offset).
+ * @example daysBetweenIso('2026-03-01', '2026-03-31') // 30
+ * @returns `NaN` if one of the dates is invalid.
+ */
+export function daysBetweenIso(from: string, to: string): number {
+  const a = parseIsoDate(from)
+  const b = parseIsoDate(to)
+  if (!a || !b) return Number.NaN
+  return Math.round(
+    (Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day)) / DAY_MS,
+  )
+}
+
 /** Today's date as `YYYY-MM-DD` in the **local** time zone (not UTC). */
 export function todayIso(now: Date = new Date()): string {
   const y = String(now.getFullYear()).padStart(4, '0')

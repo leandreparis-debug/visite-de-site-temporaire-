@@ -100,7 +100,7 @@ Un worker exigerait un script séparé (impossible avec un fichier unique) ou du
 ## 20. Plafond global de 2,5 Mo au lieu de budgets par étape (étape 6)
 
 Les budgets de taille par étape sont remplacés par un plafond global de **2,5 Mo** pour `dist/index.html`.
-pdf.js représente à lui seul ~1,7 Mo, que rien ne peut remplacer pour lire les PDF d'AutoCAD. Le reste de l'outil pèse ~0,64 Mo. Il reste ~0,13 Mo de marge, à surveiller pour la génération du rapport Word (étape 10).
+pdf.js représente à lui seul ~1,7 Mo, que rien ne peut remplacer pour lire les PDF d'AutoCAD. Le reste de l'outil pèse ~0,64 Mo. Il reste ~0,13 Mo de marge, à surveiller pour la génération du rapport Word (étape 10). Plafond relevé à 4 Mo à l'étape 7 (voir 25).
 
 ## 21. Plans en PNG et JPEG uniquement (étape 6)
 
@@ -112,7 +112,22 @@ Le plan annoté sera intégré au rapport Word, qui accepte PNG et JPEG. Pour un
 Une photo a au plus un repère. La replacer déplace son repère (même numéro) au lieu d'en créer un second.
 Le rapport associe chaque photo à un numéro sur le plan : un numéro par photo évite les ambiguïtés (« quel repère correspond à cette photo ? »), et la numérotation reste stable.
 
-## 23. Outillage (étape 1)
+## 23. Délais DO affichés comme indicatifs (étape 7)
+
+Les délais de l'assureur (**60 jours** pour prendre position sur la garantie, **90 jours** pour proposer une indemnité) sont calculés et signalés (« dépassé de 12 j », « dans 5 j »), mais toujours accompagnés de la mention « Délai indicatif (art. L242-1 du Code des assurances), à vérifier selon le contrat ».
+Ils reprennent la lecture usuelle de l'article L242-1, mais le point de départ exact, les prorogations (expertise complexe, accord de l'assuré) et les stipulations du contrat peuvent les modifier. L'outil ne connaît pas le contrat : il aide à repérer un retard probable, il ne l'établit pas. Un délai n'est plus signalé dès que l'étape correspondante est terminée ou retirée (non applicable), ou que le dossier est clôturé.
+
+## 24. Accusé de réception prioritaire comme date de référence (étape 7)
+
+La date de référence des délais est, par ordre de priorité : la date de l'étape « Accusé de réception de l'assureur », puis la date de déclaration du sinistre, puis la date de l'étape « Déclaration du sinistre ». Sans aucune de ces dates, aucun délai n'est calculé et l'encadré le demande.
+Les délais de l'assureur courent à partir de la réception d'une déclaration **complète**, que l'accusé de réception date de façon fiable. La date d'envoi de la déclaration reste un repli raisonnable tant que l'accusé n'est pas arrivé. L'encadré affiche toujours la source retenue (« à partir de l'accusé de réception du 12/03/2026 »).
+
+## 25. Plafond global relevé à 4 Mo (étape 7)
+
+Le plafond de `dist/index.html` passe de 2,5 Mo à **4 Mo**.
+La marge restante (~0,1 Mo) ne suffisait pas pour la génération du rapport Word (étape 10). À 4 Mo, le fichier reste léger à diffuser (courriel, partage) et s'ouvre en moins d'une seconde. pdf.js (~1,7 Mo) reste chargé à la demande, au premier import de PDF.
+
+## 26. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.

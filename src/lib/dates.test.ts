@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  addDaysIso,
+  daysBetweenIso,
   formatDateFr,
   formatDateShortFr,
   formatRelativeFr,
@@ -30,6 +32,17 @@ describe('dates', () => {
     expect(isValidIsoDate('2026-9-28')).toBe(false)
     expect(isValidIsoDate('28/09/2026')).toBe(false)
     expect(isValidIsoDate('2026-09-28T10:00:00Z')).toBe(false)
+  })
+
+  it('adds days and counts days on pure calendar dates', () => {
+    expect(addDaysIso('2026-01-30', 30)).toBe('2026-03-01')
+    expect(addDaysIso('2028-02-28', 1)).toBe('2028-02-29')
+    expect(addDaysIso('2026-03-01', -1)).toBe('2026-02-28')
+    expect(addDaysIso('2026-12-31', 1)).toBe('2027-01-01')
+    expect(addDaysIso('nope', 3)).toBe('nope')
+    expect(daysBetweenIso('2026-03-01', '2026-03-31')).toBe(30)
+    expect(daysBetweenIso('2026-03-31', '2026-03-01')).toBe(-30)
+    expect(daysBetweenIso('2026-03-01', 'x')).toBeNaN()
   })
 
   it('validates HH:mm times', () => {
