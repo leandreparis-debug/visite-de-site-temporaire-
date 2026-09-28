@@ -223,6 +223,27 @@ Les photos et les plans (Blob) sont dans leurs propres tables, jamais dans l'obj
 - **Validité d'un contrat** (`getInsuranceValidity`) : `not_started` si la date de début est future, `unknown` sans date de fin, `expired` si la date de fin est passée, `expiring_soon` si elle tombe dans 90 jours ou moins (la date de fin est le dernier jour couvert : un contrat qui finit aujourd'hui est encore en vigueur), `valid` sinon. Calculée à l'affichage, jamais stockée.
 - **Montants** : `claimedAmountCents` et `compensatedAmountCents`, en centimes, facultatifs. Un montant indemnisé supérieur au montant réclamé est un avertissement, pas une erreur.
 
+### Projets et coûts (étape 8)
+
+**Stades d'un coût** (`COST_STAGE_ORDER`, dans `src/features/costs/costView.ts`), du moins au plus certain :
+
+| Ordre | `status`    | Libellé    | Ligne de total | Signification                      |
+| ----- | ----------- | ---------- | -------------- | ---------------------------------- |
+| 1     | `estimate`  | Estimation | Estimations    | Montant estimé, sans devis         |
+| 2     | `quote`     | Devis reçu | Devis reçus    | Devis reçu, pas encore commandé    |
+| 3     | `committed` | Engagé     | Engagé         | Commande passée ou dépense décidée |
+| 4     | `invoiced`  | Facturé    | Facturé        | Facture reçue                      |
+
+- **Montants** : `amountHtCents` (entier ≥ 0) et `vatRateBp` (points de base, 2000 = 20 %) sont les seules valeurs stockées. La TVA et le TTC sont **calculés**, jamais stockés : TVA d'une ligne = `computeVatCents(HT, taux)`, arrondie au centime ; TTC = HT + TVA arrondie. Tout total (projet, groupe, stade, total général) est la **somme des lignes** (`sumCosts`).
+- **Jamais de `projectId` orphelin** : `cost.projectId` désigne toujours un projet de la même visite (erreur de validation sinon). Les opérations le garantissent : un projet inconnu est refusé (`addCost`, `updateCost`, `moveCostsToProject`), une ligne rétablie par « Annuler » dont le projet a disparu revient « Non rattachée » (`insertCostAt`), et un projet n'est jamais supprimé seul.
+- **Suppression d'un projet** (`removeProject(visit, id, mode)`) :
+  - `detach_costs` : ses lignes de coûts restent, sans projet (groupe « Non rattachés ») ;
+  - `delete_costs` : ses lignes sont supprimées avec lui.
+
+  Dans les deux cas, l'opération renvoie un instantané (projet, index, lignes touchées avec leur index et leur `projectId` d'origine) ; `restoreProject` remet la visite **à l'identique**.
+
+- **Ordre d'affichage des projets** : en cours, planifié, identifié, suspendu, terminé, puis par date de début (sans date en dernier). L'ordre stocké reste l'ordre de saisie.
+
 ### Cohérence
 
 Erreurs bloquantes (validation Zod, messages en français) :

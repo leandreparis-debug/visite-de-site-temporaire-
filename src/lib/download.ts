@@ -18,3 +18,20 @@ export function downloadBlob(blob: Blob, fileName: string): void {
     URL.revokeObjectURL(url)
   }, REVOKE_AFTER_MS)
 }
+
+/**
+ * File name without the characters Windows forbids (`<>:"/\\|?*`, control
+ * characters), spaces collapsed, no trailing dot or space.
+ * @example safeFileName('Entrepôt Lyon / Nord - coûts - 2026-09-28', 'csv')
+ * // "Entrepôt Lyon Nord - coûts - 2026-09-28.csv"
+ */
+export function safeFileName(baseName: string, extension: string): string {
+  const clean = baseName
+    .replace(/[<>:"/\\|?*]/g, ' ')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/, '')
+  return `${clean}.${extension}`
+}

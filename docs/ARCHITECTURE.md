@@ -202,6 +202,19 @@ Toute la logique est dans des modules purs, sans React, réutilisés par l'ongle
 - Les montants passent par `DraftAmountInput` (`components/form`) : saisie libre, envoi de chaque valeur valide (`parseEurosInput`), erreur en ligne sinon, et retour à la valeur d'avant la saisie à la perte du focus. Une saisie invalide n'est jamais envoyée : elle ne bloque pas l'enregistrement.
 - Le repli d'un sinistre clôturé est un état local de la carte (non enregistré).
 
+## Projets et coûts
+
+| Module                    | Rôle                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `projects/projectView.ts` | Ordre d'affichage des projets, totaux des coûts liés, compteurs par statut                      |
+| `projects/projectOps.ts`  | Ajouter, modifier un projet ; `removeProject` (coûts détachés ou supprimés) et `restoreProject` |
+| `costs/costView.ts`       | Montants d'une ligne, totaux par stade, groupes et sous-totaux, bandeau, export TSV / CSV       |
+| `costs/costOps.ts`        | Ajouter, modifier, supprimer / rétablir des lignes, rattacher à un projet                       |
+
+- Tous les montants restent en **centimes entiers**. La TVA est arrondie **par ligne** (`computeVatCents`) et les totaux sont des sommes de lignes (`sumCosts`) : sous-totaux et total général concordent toujours.
+- Le regroupement (projet, statut, catégorie), les groupes repliés et le projet présélectionné dans la saisie rapide sont un **état local** de l'onglet, jamais enregistré.
+- « Copier pour Excel » : `navigator.clipboard.writeText(costsToTsv(...))` ; en cas d'échec, `downloadBlob` d'un CSV (`costsToCsv`), nommé avec `safeFileName` (`src/lib/download.ts`, partagé avec le plan annoté).
+
 ## Composants d'interface
 
 Les composants sont ceux de shadcn/ui (même API, mêmes styles). Seuls `Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` sont réimplémentés sur les **éléments natifs** du navigateur (`<dialog>`, attribut `popover`, positionnement par ancre CSS, motif ARIA des onglets) plutôt que sur Radix. Voir `DECISIONS.md`, n° 13. Le tri utilise un `<select>` natif. Les suggestions de saisie utilisent `<datalist>`, et les zones de texte s'agrandissent avec leur contenu grâce à `field-sizing: content` (sans JavaScript).

@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 7)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes », « Photos », « Plan » et « DO & assurances » opérationnels. Les onglets projets et rapport arriveront aux étapes suivantes.
+**État actuel (étape 8)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes », « Photos », « Plan », « DO & assurances » et « Projets & coûts » opérationnels. L'onglet « Rapport » arrivera à une étape suivante.
 
 ---
 
@@ -92,6 +92,20 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
 
 - **Suivre un sinistre sur plusieurs visites** : à la visite suivante, **dupliquer** la visite (menu « ⋯ », « Dupliquer »). La copie reprend les sinistres (étapes, statuts, dates, montants) et les contrats ; il suffit d'avancer les étapes sur la copie. La visite d'origine reste inchangée et garde l'état du dossier à sa date.
 - Un sinistre **clôturé** est replié sur une ligne de résumé ; la flèche à gauche le déplie.
+
+### Projets & coûts
+
+- **Bandeau de synthèse**, par exemple « 2 projets en cours · 18 lignes de coûts · Engagé : 45 000,00 € HT · Facturé : 12 300,00 € HT ». Un clic fait défiler jusqu'à la section. L'onglet affiche le nombre de projets non terminés.
+- **Projets connus** : saisir le nom, le statut (« Identifié » par défaut) et le responsable, puis `Entrée`. Chaque carte se modifie directement (statut, période, description, commentaire) et affiche ses **coûts liés** (nombre de lignes, totaux HT et TTC) ; « Voir les coûts » ouvre le groupe du projet dans le tableau.
+- **Supprimer un projet** : sans coût, il disparaît aussitôt (« Annuler » dans le message). S'il a des coûts, l'outil demande quoi en faire : « Conserver les coûts (non rattachés) » ou « Supprimer aussi les coûts ». « Annuler » remet ensuite tout à l'identique.
+- **Saisie rapide d'un coût** : libellé, montant HT (« 12 500,50 »), taux de TVA (20 % par défaut), catégorie, projet, statut, fournisseur, puis `Entrée`. Un montant invalide ou absent bloque l'ajout et est signalé. Quand les coûts sont groupés par projet, le dernier groupe de projet ouvert est présélectionné.
+- **Tableau** : « Grouper par » projet (par défaut), statut ou catégorie. Chaque groupe a un sous-total HT, TVA et TTC et se replie d'un clic. Chaque ligne se modifie directement ; la TVA et le TTC sont calculés (TVA arrondie au centime **ligne par ligne** : les totaux sont exactement la somme des lignes). Cocher des lignes permet de les **rattacher à un projet** ou de les supprimer en une fois.
+- **Totaux par stade**, en pied de tableau, puis le **total général** :
+  - **Estimations** : montants estimés, sans devis ;
+  - **Devis reçus** : devis reçus, pas encore commandés ;
+  - **Engagé** : commande passée ou dépense décidée ;
+  - **Facturé** : facture reçue.
+- **Copier pour Excel** : copie **toutes** les lignes (quels que soient le regroupement et les groupes repliés) ; il suffit de coller dans Excel avec `Ctrl+V`. Les montants arrivent comme des nombres (additionnables avec `=SOMME`), accents compris. Si la copie est impossible (navigateur ou poste restreint), un fichier **CSV** « site - coûts - date.csv » est téléchargé à la place : l'ouvrir avec Excel.
 
 L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
 
@@ -185,7 +199,8 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 │   ├── photos.spec.ts         # Import de vrais fichiers, EXIF, orientation, visionneuse, rotation…
 │   ├── plan-feasibility.spec.ts # pdf.js en fil principal, en file:// sous CSP (sonde tests/feasibility)
 │   ├── plan.spec.ts           # Import PDF/PNG, placement, déplacements, plan annoté, erreurs
-│   └── do-insurance.spec.ts   # Contrats, sinistre DO, délai dépassé, montants, rechargement, duplication
+│   ├── do-insurance.spec.ts   # Contrats, sinistre DO, délai dépassé, montants, rechargement, duplication
+│   └── projects-costs.spec.ts # Projets, coûts, totaux, regroupements, suppression/annulation, presse-papiers
 └── src/
     ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
@@ -211,6 +226,8 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── insurance/         # Contrats : insuranceOps, insuranceView (validité), InsurancesSection
     │   ├── do/                # Onglet DO & assurances : doClaimOps, doView (étapes, délais, alertes),
     │   │                      # doInsuranceOverview (synthèse), cartes de sinistre, frise des étapes
+    │   ├── projects/          # Onglet Projets & coûts : ProjectsCostsTab, projectOps, projectView
+    │   ├── costs/             # costOps, costView (totaux, groupes, export TSV/CSV), CostsSection
     │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
     │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
     │   ├── photos/            # photosRepo, usePhotos
@@ -221,6 +238,7 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── money.ts           # Centimes, TVA, saisie et affichage en euros
     │   ├── dates.ts           # Dates ISO, format français, ajout / écart de jours (UTC)
     │   ├── id.ts              # createId() (UUID v4)
+    │   ├── download.ts        # downloadBlob(), safeFileName() (noms de fichiers Windows)
     │   ├── validation.ts      # parseOrThrow() → ValidationError
     │   ├── notify.ts          # notifyError() (toast FR), pluralize()
     │   ├── search.ts          # Recherche insensible aux accents

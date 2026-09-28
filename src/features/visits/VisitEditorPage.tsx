@@ -17,6 +17,8 @@ import { NotesTab } from '@/features/notes/NotesTab'
 import { countPhotos } from '@/features/photos/photosRepo'
 import { PhotosTab } from '@/features/photos/PhotosTab'
 import { PlanTab } from '@/features/plan/PlanTab'
+import { summarizeProjects } from '@/features/projects/projectView'
+import { ProjectsCostsTab } from '@/features/projects/ProjectsCostsTab'
 import { useLiveResult } from '@/lib/db/useLiveResult'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -138,7 +140,9 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
                   ? `${TAB_LABELS[value]} (${draft.pins.length})`
                   : value === 'do-insurance'
                     ? `${TAB_LABELS[value]} (${doOverview.tabCount})`
-                    : TAB_LABELS[value]}
+                    : value === 'projects-costs'
+                      ? `${TAB_LABELS[value]} (${summarizeProjects(draft.projects).active})`
+                      : TAB_LABELS[value]}
               {value === 'do-insurance' && doOverview.hasAlert && (
                 <>
                   <span aria-hidden="true" className="size-2 rounded-full bg-danger" />
@@ -160,6 +164,8 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
               <PlanTab visit={draft} update={update} />
             ) : value === 'do-insurance' ? (
               <DoInsuranceTab visit={draft} update={update} />
+            ) : value === 'projects-costs' ? (
+              <ProjectsCostsTab visit={draft} update={update} />
             ) : (
               <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
             )}

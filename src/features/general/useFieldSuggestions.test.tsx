@@ -55,6 +55,21 @@ describe('field suggestions', () => {
     expect(suggestions.brokers).toEqual(['Courtage SA'])
   })
 
+  it('suggests the suppliers of the cost lines', () => {
+    const base = makeFullVisit({ id: 'v1' })
+    const visits = [
+      makeFullVisit({
+        id: 'v1',
+        costs: [
+          { ...base.costs[0]!, id: 'a', supplier: 'Couverture SA' },
+          { ...base.costs[1]!, id: 'b', supplier: ' couverture sa ' },
+        ],
+      }),
+      makeFullVisit({ id: 'v2', costs: [{ ...base.costs[1]!, supplier: 'Bureau Véritas' }] }),
+    ]
+    expect(computeFieldSuggestions(visits).suppliers).toEqual(['Couverture SA', 'Bureau Véritas'])
+  })
+
   it('skips the visit being edited', () => {
     const visits = [makeFullVisit({ id: 'current', author: 'Moi' }), makeFullVisit({ id: 'other' })]
     expect(computeFieldSuggestions(visits, 'current').authors).not.toContain('Moi')

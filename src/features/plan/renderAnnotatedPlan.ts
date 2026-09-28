@@ -1,4 +1,5 @@
 import { computeTargetSize } from '@/features/photos/processing/imageSize'
+import { safeFileName } from '@/lib/download'
 import type { Pin, PhotoCategory } from '@/types/media'
 import {
   PIN_BORDER_COLOR,
@@ -151,12 +152,5 @@ export async function renderAnnotatedPlan(
 
 /** File name "{site} - {plan} - {date}.png" without characters forbidden by Windows. */
 export function annotatedPlanFileName(siteName: string, planName: string, date: string): string {
-  const clean = (text: string) =>
-    text
-      .replace(/[<>:"/\\|?*]/g, ' ')
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\u0000-\u001f]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-  return `${clean(`${siteName} - ${planName} - ${date}`).replace(/[. ]+$/, '')}.png`
+  return safeFileName(`${siteName} - ${planName} - ${date}`, 'png')
 }

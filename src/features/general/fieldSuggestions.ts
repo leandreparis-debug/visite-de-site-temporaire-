@@ -18,6 +18,8 @@ export interface FieldSuggestions {
   /** Insurers of the contracts and DO claims. */
   insurers: string[]
   brokers: string[]
+  /** Suppliers of the cost lines. */
+  suppliers: string[]
 }
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base' })
@@ -62,6 +64,7 @@ export function computeFieldSuggestions(
     companies: new Counter(),
     insurers: new Counter(),
     brokers: new Counter(),
+    suppliers: new Counter(),
   }
   for (const visit of visits) {
     if (visit.id === excludeVisitId) continue
@@ -78,6 +81,7 @@ export function computeFieldSuggestions(
       counters.brokers.add(insurance.broker)
     }
     for (const claim of visit.doClaims) counters.insurers.add(claim.insurer)
+    for (const cost of visit.costs) counters.suppliers.add(cost.supplier)
   }
   for (const author of DEFAULT_AUTHORS) counters.authors.add(author, 0)
   return {
@@ -89,5 +93,6 @@ export function computeFieldSuggestions(
     companies: counters.companies.list(),
     insurers: counters.insurers.list(),
     brokers: counters.brokers.list(),
+    suppliers: counters.suppliers.list(),
   }
 }

@@ -127,7 +127,17 @@ Les délais de l'assureur courent à partir de la réception d'une déclaration 
 Le plafond de `dist/index.html` passe de 2,5 Mo à **4 Mo**.
 La marge restante (~0,1 Mo) ne suffisait pas pour la génération du rapport Word (étape 10). À 4 Mo, le fichier reste léger à diffuser (courriel, partage) et s'ouvre en moins d'une seconde. pdf.js (~1,7 Mo) reste chargé à la demande, au premier import de PDF.
 
-## 26. Outillage (étape 1)
+## 26. TVA arrondie ligne par ligne (étape 8)
+
+La TVA est calculée et arrondie au centime **sur chaque ligne de coût**, et chaque total (projet, groupe, stade, total général) est la **somme des lignes**. On n'applique jamais un taux à un total.
+C'est la pratique des factures et devis français, et c'est la seule façon de garantir que le total affiché égale l'addition des montants visibles au-dessus, quel que soit le regroupement choisi. Exemple : trois lignes de 0,05 € HT à 5,5 % ont chacune 0,00 € de TVA ; appliquer 5,5 % au total (0,15 €) donnerait 0,01 €, soit un total qui ne correspond à aucune ligne.
+
+## 27. Export TSV / CSV au format Excel FR plutôt qu'un fichier .xlsx (étape 8)
+
+« Copier pour Excel » place dans le presse-papiers un tableau séparé par des tabulations, que l'on colle dans Excel avec Ctrl+V. Si le presse-papiers est indisponible, un fichier CSV est téléchargé (séparateur `;`, BOM UTF-8 pour les accents, fins de ligne CRLF).
+Les montants sont écrits sans symbole ni séparateur de milliers, avec une virgule décimale (`12500,50`), et les taux en pourcentage (`20`, `5,5`) : Excel en français les reconnaît comme des nombres, additionnables avec `=SOMME`. Générer un vrai `.xlsx` demanderait une bibliothèque de plusieurs centaines de Ko (ou un format zippé écrit à la main) pour un gain faible : les Property Managers retravaillent de toute façon le tableau dans leur propre classeur.
+
+## 28. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.
