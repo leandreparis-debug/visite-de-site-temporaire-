@@ -1,6 +1,9 @@
 import { toast } from 'sonner'
+import { AppError, toAppError } from '@/lib/errors'
 
 function describe(reason: unknown): string {
+  const appError = toAppError(reason)
+  if (appError instanceof AppError) return appError.userMessage
   if (reason instanceof Error) return reason.message
   if (typeof reason === 'string') return reason
   return 'Détail indisponible.'

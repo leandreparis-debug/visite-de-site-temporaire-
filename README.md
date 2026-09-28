@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 1)** : fondations uniquement — coquille de l'application, design system et outillage. Aucune fonctionnalité métier.
+**État actuel (étape 2)** : fondations (coquille, design system, outillage), plus le modèle de données et la couche de stockage local (IndexedDB), sans interface métier pour l'instant.
 
 ---
 
@@ -21,6 +21,22 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 
 Le fichier fonctionne hors réseau et ne dépend d'aucun autre fichier.
 Les données sont liées **au navigateur et au profil utilisateur** du poste : ouvrir le fichier dans Chrome puis dans Edge donne deux espaces de données distincts. Utilisez toujours le même navigateur.
+
+---
+
+## Où sont stockées les données
+
+Toutes les données (visites, notes, photos, plans…) sont enregistrées **dans le navigateur, sur le poste**, dans une base IndexedDB nommée `cp-compte-rendu`. Rien n'est envoyé sur un serveur ni sur Internet.
+
+Limites à connaître :
+
+- **Propres au navigateur et au poste** : Chrome et Edge ont chacun leur propre stockage, et un autre PC ou un autre profil Windows ne voit pas les mêmes visites.
+- **Effacées si l'utilisateur vide les données du navigateur** (« Effacer les données de navigation » → « Cookies et autres données de site »), ou par une politique de nettoyage du poste.
+- **Pas de navigation privée** : les données y sont supprimées à la fermeture, et IndexedDB peut y être indisponible. L'outil affiche alors « Stockage indisponible ».
+- **Espace limité** : le navigateur accorde un quota (généralement une part importante du disque libre). En cas de dépassement, le message « Espace de stockage du navigateur insuffisant. Exportez puis supprimez d'anciennes visites. » s'affiche.
+- Au démarrage, l'outil demande au navigateur un stockage **persistant**, pour éviter une purge automatique quand le disque est plein. Le navigateur peut refuser sans prévenir.
+
+➡️ Pour conserver ou transmettre une visite, utiliser l'**export de fichier de visite** (étape 9). Détail du modèle : [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
 
 ---
 
@@ -79,27 +95,42 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 ├── eslint.config.js           # ESLint flat config
 ├── components.json            # Configuration shadcn/ui
 ├── docs/
+│   ├── DATA_MODEL.md          # Modèle de données (entités, règles, diagramme)
 │   └── DECISIONS.md           # Choix structurants
 ├── scripts/
 │   └── check-single-file.mjs  # Contrôle du build (fichier unique, aucune ressource externe)
-├── tests/
-│   └── e2e/smoke.spec.ts      # Ouverture de dist/index.html en file:// (console, réseau)
+├── tests/e2e/
+│   ├── smoke.spec.ts          # Ouverture de dist/index.html en file:// (console, réseau)
+│   └── storage.spec.ts        # IndexedDB + Blob persistants après rechargement en file://
 └── src/
-    ├── main.tsx               # Montage React + écoute des erreurs globales
+    ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
     │   ├── App.tsx            # Coquille : header + zone principale + Toaster
     │   ├── ErrorBoundary.tsx  # Erreur de rendu : message FR + « Recharger l'outil »
-    │   └── globalErrorHandlers.ts # window.onerror / unhandledrejection → toast
+    │   ├── globalErrorHandlers.ts # window.onerror / unhandledrejection → toast
+    │   └── initStorage.ts     # Stockage persistant + vérification d'IndexedDB au démarrage
     ├── assets/logo/           # Logo Carrefour Property (provisoire, à remplacer)
     ├── components/
     │   ├── ui/                # Composants shadcn/ui (button, card, dialog…)
     │   ├── brand/BrandLogo.tsx
     │   └── layout/            # AppHeader, EmptyState
-    ├── features/              # Code métier, un dossier par fonctionnalité (à venir)
-    ├── lib/utils.ts           # cn() (fusion de classes Tailwind)
+    ├── features/              # Code métier, un dossier par fonctionnalité
+    │   ├── visits/            # visitsRepo, visitFactory (création, duplication), useVisits
+    │   ├── photos/            # photosRepo, usePhotos
+    │   └── plan/              # plansRepo, usePlans, pins (numérotation)
+    ├── lib/
+    │   ├── db/                # db.ts (Dexie), storage.ts (quota, persistance), meta.ts, useLiveResult
+    │   ├── errors.ts          # Erreurs typées + toUserMessage()
+    │   ├── money.ts           # Centimes, TVA, saisie et affichage en euros
+    │   ├── dates.ts           # Dates ISO, format français
+    │   ├── id.ts              # createId() (UUID v4)
+    │   ├── validation.ts      # parseOrThrow() → ValidationError
+    │   ├── useObjectUrl.ts    # Seul point de création des URL blob:
+    │   ├── zod-setup.ts       # Config Zod (jitless, messages FR)
+    │   └── utils.ts           # cn() (fusion de classes Tailwind)
     ├── styles/globals.css     # Tailwind v4 + tokens du design system (@theme)
-    ├── test/setup.ts          # Initialisation Vitest (jest-dom)
-    └── types/                 # Types partagés (à venir)
+    ├── test/                  # Setup Vitest (fake-indexeddb, jest-dom) + fixtures
+    └── types/                 # Schémas Zod (visit, media, common) + labels.ts (libellés FR)
 ```
 
 Règle d'organisation : **tout nouveau code métier va dans `src/features/<feature>/`** (composants, logique, tests de la fonctionnalité). `components/` ne contient que des éléments génériques réutilisables.
@@ -109,4 +140,5 @@ Règle d'organisation : **tout nouveau code métier va dans `src/features/<featu
 - Interface en **français** ; code, noms de fichiers, variables et commentaires techniques en **anglais**.
 - Aucune ressource externe au runtime : pas de CDN, pas de Google Fonts, aucun appel réseau (police système : Segoe UI sous Windows). La CSP du build bloque toute requête.
 - Pas d'import dynamique : tout doit rester dans le fichier unique.
+- Données : toujours passer par les repositories (validation + transactions) ; montants en centimes, dates `YYYY-MM-DD`. Zod s'importe depuis `zod/mini`.
 - Couleurs : utiliser les tokens (`bg-brand`, `text-muted-foreground`, `bg-success`…) plutôt que des valeurs en dur. `accent-red` / `danger` sont réservés aux alertes et statuts critiques.
