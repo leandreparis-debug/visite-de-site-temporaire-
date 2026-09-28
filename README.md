@@ -9,7 +9,7 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 > ⚠️ **Les données sont stockées dans le navigateur du poste** (IndexedDB, à partir de l'étape 2).
 > Elles ne sont ni synchronisées ni sauvegardées ailleurs : changer de PC ou de navigateur, ou vider les données de navigation, les fait disparaître. Utilisez l'export de fichiers de visite (étape ultérieure) pour les conserver ou les transmettre.
 
-**État actuel (étape 5)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes » et « Photos » opérationnels. Les onglets plan, DO, projets et rapport arriveront aux étapes suivantes.
+**État actuel (étape 6)** : gestion des visites, enregistrement automatique, onglets « Informations générales », « Notes », « Photos » et « Plan » opérationnels. Les onglets DO, projets et rapport arriveront aux étapes suivantes.
 
 ---
 
@@ -60,6 +60,24 @@ Les données sont liées **au navigateur et au profil utilisateur** du poste : o
   - dans la visionneuse : `←` / `→` pour la photo précédente ou suivante, `Échap` pour fermer.
 - **Réorganiser** : glisser-déposer une photo, les raccourcis ci-dessus, ou le menu « ⋯ » (déplacer au début ou à la fin, pivoter, supprimer).
 - **Sélection multiple** : cocher les photos pour changer leur catégorie ou les supprimer d'un coup. Si une photo porte un repère sur le plan, la confirmation l'indique (« 2 repères seront retirés du plan (n°4, n°9) »). Les numéros de repère ne sont jamais réattribués.
+
+### Plan
+
+- **Exporter le plan depuis AutoCAD** : « Tracer » ou « Exporter » en **PDF** (idéalement au format A3 ou A1, en couleurs ou noir et blanc), ou en **PNG**. Évitez les PDF **protégés par mot de passe** : l'outil ne peut pas les ouvrir. Si des éléments manquent sur un PDF (images particulières), un export PNG règle le problème.
+- **Ajouter un plan** : glisser le fichier sur l'onglet ou « Ajouter un plan ». Pour un PDF de plusieurs pages, choisir la page dans la grille de miniatures. Une visite peut avoir plusieurs plans (bâtiments, niveaux) : un bouton par plan en haut.
+- **Se déplacer** : molette pour zoomer autour du curseur, glisser le fond pour déplacer le plan, boutons « + », « − » et « Ajuster ».
+- **Placer une photo** (panneau de droite, photos « Non placées » par défaut), de trois façons :
+  1. **glisser** la miniature et la **déposer** sur le plan ;
+  2. **cliquer** sur la miniature, puis **cliquer** sur le plan à l'endroit voulu (Échap pour annuler) ;
+  3. **au clavier** : Entrée sur la miniature, puis Entrée sur la zone du plan (le repère est posé au centre de la vue).
+
+  Chaque photo a un seul repère : replacer une photo déjà placée déplace son repère, qui garde son numéro. La couleur du repère dépend de la catégorie de la photo (rouge : désordre, orange : sécurité, bleu : équipement, violet : travaux, gris : général ou autre).
+
+- **Repère** : le glisser pour le déplacer ; cliquer dessus pour ouvrir sa bulle (étiquette propre au repère, « Voir la photo », « Retirer du plan » avec « Annuler »).
+- **Raccourcis clavier** :
+  - zone du plan (après un clic ou `Tab`) : `+` / `-` pour zoomer, flèches pour déplacer le plan, `0` pour ajuster, `Entrée` pour placer la photo choisie ;
+  - repère (atteint avec `Tab`, dans l'ordre des numéros) : flèches pour le déplacer de 0,5 %, `Maj` + flèches pour 5 %, `Entrée` pour ouvrir sa bulle, `Suppr` pour le retirer.
+- **Plan annoté** : menu du plan, puis « Télécharger le plan annoté (PNG) ». L'image contient le plan, les repères numérotés en couleur et une légende. Le fichier est nommé « site - plan - date.png ». C'est cette image qui figurera dans le rapport Word.
 
 L'adresse de la page (par exemple `…/index.html#/visits/…/notes`) mémorise la visite et l'onglet ouverts : un rechargement ramène au même endroit.
 
@@ -143,13 +161,16 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 │   └── DECISIONS.md           # Choix structurants
 ├── scripts/
 │   ├── check-single-file.mjs  # Contrôle du build (fichier unique, aucune ressource externe)
-│   └── make-photo-fixtures.mjs # Génère tests/fixtures/photos (JPEG EXIF II/MM, orientation 6, PNG…)
+│   ├── make-photo-fixtures.mjs # Génère tests/fixtures/photos (JPEG EXIF II/MM, orientation 6, PNG…)
+│   └── make-plan-fixtures.mjs  # Génère tests/fixtures/plans (PDF 2 pages, PDF protégé, PNG, PDF corrompu)
 ├── tests/e2e/
 │   ├── smoke.spec.ts          # Ouverture de dist/index.html en file:// (console, réseau)
 │   ├── storage.spec.ts        # IndexedDB + Blob persistants après rechargement en file://
 │   ├── visits.spec.ts         # Parcours complet : créer, renommer, recharger, dupliquer, supprimer
 │   ├── general-notes.spec.ts  # Informations générales, participants, notes, points d'attention
-│   └── photos.spec.ts         # Import de vrais fichiers, EXIF, orientation, visionneuse, rotation…
+│   ├── photos.spec.ts         # Import de vrais fichiers, EXIF, orientation, visionneuse, rotation…
+│   ├── plan-feasibility.spec.ts # pdf.js en fil principal, en file:// sous CSP (sonde tests/feasibility)
+│   └── plan.spec.ts           # Import PDF/PNG, placement, déplacements, plan annoté, erreurs
 └── src/
     ├── main.tsx               # zod-setup (1er import), montage React, erreurs globales, init stockage
     ├── app/
@@ -170,6 +191,8 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   │                      # visitInfoOps, suggestions (datalist)
     │   ├── notes/             # Onglet Notes : sections, trames, points d'attention (Ops + View)
     │   ├── photos/            # Onglet Photos : galerie, visionneuse, import, processing/ (EXIF, redimensionnement)
+    │   ├── plan/              # Onglet Plan : PlanCanvas (zoom, repères), pinOps, viewport, plan annoté,
+    │   │                      # import/ (pdf.js en fil principal, images)
     │   ├── visits/            # visitsRepo, visitFactory, useVisits, useVisitDraft (autosave),
     │   │                      # VisitListPage, VisitEditorPage, dialogues création/duplication/suppression
     │   ├── photos/            # photosRepo, usePhotos

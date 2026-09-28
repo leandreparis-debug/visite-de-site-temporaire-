@@ -9,7 +9,9 @@
  * - `#/`                    → visit list
  * - `#/visits/:id`          → redirected to `#/visits/:id/general`
  * - `#/visits/:id/:tab`     → visit editor on a tab
- * Unknown tabs redirect to `general`, unknown routes to `#/`.
+ * - `#/visits/:id/plan?p=<planId>` → plan tab with the active plan
+ * Unknown tabs redirect to `general`, unknown routes to `#/`. The `?p=`
+ * parameter is optional and only kept on the plan tab (older links still work).
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 
@@ -27,7 +29,8 @@ export type VisitTab = (typeof VISIT_TABS)[number]
 export const DEFAULT_VISIT_TAB: VisitTab = 'general'
 
 /** Typed application route (discriminated union on `name`). */
-export type Route = { name: 'visits' } | { name: 'visit'; visitId: string; tab: VisitTab }
+export type Route =
+  { name: 'visits' } | { name: 'visit'; visitId: string; tab: VisitTab; planId?: string }
 
 export function isVisitTab(value: string): value is VisitTab {
   return (VISIT_TABS as readonly string[]).includes(value)
@@ -38,8 +41,12 @@ export function routeToHash(route: Route): string {
   switch (route.name) {
     case 'visits':
       return '#/'
-    case 'visit':
-      return `#/visits/${encodeURIComponent(route.visitId)}/${route.tab}`
+    case 'visit': {
+      const path = `#/visits/${encodeURIComponent(route.visitId)}/${route.tab}`
+      return route.tab === 'plan' && route.planId
+        ? `${path}?p=${encodeURIComponent(route.planId)}`
+        : path
+    }
   }
 }
 
@@ -49,7 +56,7 @@ export function routeToHash(route: Route): string {
  * `routeToHash(result)` with the input to know whether to redirect.
  */
 export function parseHash(hash: string): Route {
-  const path = hash.replace(/^#/, '')
+  const [path = '', query = ''] = hash.replace(/^#/, '').split('?', 2)
   const segments = path.split('/').filter(Boolean)
   if (segments[0] === 'visits' && segments.length >= 2 && segments.length <= 3) {
     let visitId: string
@@ -58,8 +65,10 @@ export function parseHash(hash: string): Route {
     } catch {
       return { name: 'visits' }
     }
-    const tab = segments[2] ?? DEFAULT_VISIT_TAB
-    return { name: 'visit', visitId, tab: isVisitTab(tab) ? tab : DEFAULT_VISIT_TAB }
+    const rawTab = segments[2] ?? DEFAULT_VISIT_TAB
+    const tab = isVisitTab(rawTab) ? rawTab : DEFAULT_VISIT_TAB
+    const planId = tab === 'plan' ? new URLSearchParams(query).get('p') : null
+    return planId ? { name: 'visit', visitId, tab, planId } : { name: 'visit', visitId, tab }
   }
   return { name: 'visits' }
 }

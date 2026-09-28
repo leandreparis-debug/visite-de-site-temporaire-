@@ -14,6 +14,7 @@ import { GeneralTab } from '@/features/general/GeneralTab'
 import { NotesTab } from '@/features/notes/NotesTab'
 import { countPhotos } from '@/features/photos/photosRepo'
 import { PhotosTab } from '@/features/photos/PhotosTab'
+import { PlanTab } from '@/features/plan/PlanTab'
 import { useLiveResult } from '@/lib/db/useLiveResult'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -128,7 +129,9 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
             <TabsTrigger key={value} value={value} className="flex-none px-3">
               {value === 'photos' && photoCount !== undefined
                 ? `${TAB_LABELS[value]} (${photoCount})`
-                : TAB_LABELS[value]}
+                : value === 'plan'
+                  ? `${TAB_LABELS[value]} (${draft.pins.length})`
+                  : TAB_LABELS[value]}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -140,6 +143,8 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
               <NotesTab visit={draft} update={update} />
             ) : value === 'photos' ? (
               <PhotosTab visit={draft} />
+            ) : value === 'plan' ? (
+              <PlanTab visit={draft} update={update} />
             ) : (
               <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
             )}

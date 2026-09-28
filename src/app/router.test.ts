@@ -21,6 +21,35 @@ describe('router', () => {
     })
   })
 
+  it('keeps the active plan (?p=) on the plan tab only, backward compatible', () => {
+    expect(parseHash('#/visits/v1/plan?p=abc')).toEqual({
+      name: 'visit',
+      visitId: 'v1',
+      tab: 'plan',
+      planId: 'abc',
+    })
+    expect(parseHash('#/visits/v1/plan')).toEqual({ name: 'visit', visitId: 'v1', tab: 'plan' })
+    expect(parseHash('#/visits/v1/notes?p=abc')).toEqual({
+      name: 'visit',
+      visitId: 'v1',
+      tab: 'notes',
+    })
+    expect(routeToHash({ name: 'visit', visitId: 'v1', tab: 'plan', planId: 'a b' })).toBe(
+      '#/visits/v1/plan?p=a%20b',
+    )
+    expect(routeToHash({ name: 'visit', visitId: 'v1', tab: 'notes', planId: 'x' })).toBe(
+      '#/visits/v1/notes',
+    )
+    expect(
+      parseHash(routeToHash({ name: 'visit', visitId: 'v1', tab: 'plan', planId: 'a b' })),
+    ).toEqual({
+      name: 'visit',
+      visitId: 'v1',
+      tab: 'plan',
+      planId: 'a b',
+    })
+  })
+
   it('redirects unknown tabs to general and unknown routes to the list', () => {
     expect(parseHash('#/visits/abc/unknown')).toEqual({
       name: 'visit',

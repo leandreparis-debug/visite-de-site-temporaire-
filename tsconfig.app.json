@@ -21,7 +21,10 @@
     "erasableSyntaxOnly": true,
     "noUncheckedSideEffectImports": true,
 
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "pdfjs-dist/legacy/build/pdf.worker.mjs": ["./src/types/pdfjs-worker.d.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]

@@ -23,6 +23,9 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         launchOptions: {
           executablePath: process.env.PW_CHROMIUM_PATH || undefined,
+          // UTF-8 locale: without it, Chromium on a bare Linux saves downloads
+          // with accented names ("Entrepôt…") as "download".
+          env: { ...process.env, LANG: process.env.LANG || 'C.UTF-8' },
         },
       },
     },

@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "tests/e2e"]
+  "include": ["vite.config.ts", "vite.probe.config.ts", "playwright.config.ts", "tests/e2e"]
 }

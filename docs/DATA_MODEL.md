@@ -189,6 +189,14 @@ Les photos et les plans (Blob) sont dans leurs propres tables, jamais dans l'obj
 - **Un numéro n'est jamais réattribué, même après suppression** (y compris du plus grand) : la visite porte un compteur `nextPinNumber` (≥ 1, défaut 1) qui ne fait qu'augmenter. Pour créer un repère, appeler `allocatePinNumber(visit)` dans le même `updateVisit` que l'ajout du repère : la fonction renvoie le numéro et la visite avec le compteur incrémenté. Le schéma vérifie que `nextPinNumber` est supérieur à tous les numéros existants.
 - Visites enregistrées avant l'existence du compteur : `normalizeVisit` (appelée à chaque lecture par le repository) le calcule comme « plus grand numéro + 1 ».
 - Supprimer une photo ou un plan supprime, dans la même transaction, les repères qui y font référence.
+- **Une photo, un repère** : une photo a au plus un repère (`placePhotoOnPlan`). Replacer une photo déjà placée **déplace** son repère (nouveau plan et nouvelle position) en **conservant son numéro**, sans toucher au compteur. Retirer un repère ne libère pas son numéro ; « Annuler » le restaure avec le même numéro et la même position.
+- L'étiquette `label?` est propre au repère (distincte de la légende de la photo).
+
+### Plans (étape 6)
+
+- `blob` : image du plan en **PNG** (rendu d'une page PDF à 4096 px sur le grand côté, ou JPEG 0,9 si le PNG dépasse 6 Mo) ou image importée (PNG / JPEG, 4096 px max., format conservé). Jamais de WebP : le rapport Word doit pouvoir l'intégrer.
+- `width` / `height` : dimensions de cette image. Les coordonnées des repères sont normalisées (0–1) par rapport à elles.
+- `sourceType` : `pdf` ou `image`. Plusieurs plans par visite (bâtiments, niveaux, cellules), ordonnés par `order`.
 
 ### Cohérence
 

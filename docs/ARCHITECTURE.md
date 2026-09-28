@@ -147,8 +147,48 @@ flowchart LR
 - **Affichage** : miniatures seulement dans la grille (`loading="lazy"`, `content-visibility: auto`), image principale seulement dans la visionneuse, qui précharge la suivante. `useObjectUrl` partage une URL `blob:` par Blob et ne la révoque qu'un instant après son dernier usage. Sans ce délai, passer de la photo préchargée à la photo affichée révoquait une URL en cours de chargement.
 - **Cache Dexie `immutable`** : les résultats des requêtes réactives sont figés au lieu d'être copiés. C'est moins coûteux avec de nombreuses photos, et toute mutation accidentelle d'une donnée lue lève une erreur.
 
+## Plan interactif
+
+### pdf.js dans le fil principal
+
+Les plans PDF (exports AutoCAD) sont rendus par **pdf.js** (`pdfjs-dist`, build « legacy »), **sans Web Worker** :
+
+- le module worker de pdf.js est importé statiquement et exposé via `globalThis.pdfjsWorker = { WorkerMessageHandler }` (`src/features/plan/import/pdfjs.ts`). pdf.js détecte ce gestionnaire et utilise alors son « fake worker » dans le fil principal, sans jamais appeler `new Worker` ni charger de fichier ;
+- `getDocument` reçoit `isEvalSupported: false` (ignoré depuis pdf.js 5, qui n'utilise plus `eval`), `useSystemFonts: true` et `useWorkerFetch: false`, **sans** `cMapUrl`, `standardFontDataUrl` ni `wasmUrl` : aucune requête ne part, la CSP est respectée ;
+- le module pdf.js n'est **évalué** qu'au premier import d'un PDF (import dynamique résolu dans le même fichier, sans chunk séparé) : le démarrage de l'outil n'est pas ralenti ;
+- **pourquoi le fil principal** : le fichier unique ne peut pas fournir de script de worker séparé, et un worker créé depuis un Blob obligerait à assouplir la CSP. Le rendu d'une page A3 à 4096 px prend ~0,15 à 0,3 s ; l'encodage PNG et l'enregistrement portent le total à ~0,5 à 1,2 s (mesuré en e2e) ;
+- **build « legacy »** : la build moderne de pdf.js utilise des API JavaScript très récentes (`Map.prototype.getOrInsertComputed`…) absentes de Chrome 141, alors que les postes d'entreprise peuvent avoir quelques versions de retard. La build legacy embarque les polyfills nécessaires ;
+- **contenus non rendus** : sans WASM, les images JPEG 2000 (JPX) ou JBIG2 d'un PDF peuvent manquer. Les avertissements de pdf.js sont interceptés pendant le rendu ; dans ce cas, un message propose d'exporter le plan en PNG depuis AutoCAD. Un PDF protégé ou corrompu donne un message en français, sans plantage.
+
+Rendu final : **4096 px** sur le grand côté (agrandi si la page est petite, 8192 px au plus), fond blanc, **PNG**, ou JPEG 0,9 si le PNG dépasse 6 Mo. Les images importées (PNG, JPEG) sont limitées à 4096 px et gardent leur format : Word intègre PNG et JPEG, pas WebP.
+
+### Repères de taille constante
+
+Le plan est une `<img>` transformée en CSS (`translate(tx, ty) scale(s)`). Les repères ne sont **pas** dans ce calque : ce sont des boutons positionnés à `normalizedToScreen(pin, view)` (`viewport.ts`). Ils gardent donc **28 px à l'écran quel que soit le zoom**, et restent exactement à leur place relative (coordonnées normalisées 0–1). Le même style (couleur par catégorie, bordure blanche, ombre, `pinStyle.ts`) est utilisé à l'écran et dans l'image générée (`renderAnnotatedPlan`).
+
+### Enregistrement uniquement au relâchement
+
+Zoom, déplacement du plan et glisser d'un repère ne modifient qu'un **état local** (vue, position provisoire). La visite n'est modifiée (`update`) **qu'une seule fois**, au relâchement du repère. Au clavier, chaque appui (flèche, Maj + flèche) compte pour une action, donc un `update`. Le zoom ne touche jamais la visite (vérifié en e2e avec 30 repères : ~58 images/s).
+
+### Une photo, un repère
+
+Une photo a **au plus un repère**. `placePhotoOnPlan` crée le repère (numéro tiré de `nextPinNumber`) ou, si la photo est déjà placée, **déplace** son repère (autre plan éventuellement) en **conservant son numéro**.
+
+```mermaid
+flowchart TD
+    A["Photo déposée sur le plan<br/>(glisser-déposer, mode clic ou Entrée au clavier)"] --> B["Gestionnaire : pinId = createId(),<br/>point écran → coordonnées normalisées (0–1)"]
+    B --> C{"La photo a déjà<br/>un repère ?"}
+    C -- non --> D["allocatePinNumber(visit)<br/>n° = nextPinNumber, compteur + 1"]
+    D --> E["Nouveau repère { planId, photoId, x, y, n° }"]
+    C -- oui --> F["Même repère, même n°<br/>nouveau plan + nouvelle position"]
+    E & F --> G["update(v => placePhotoOnPlan(v, …).visit)<br/>fonction pure, rejouée par l'autosave"]
+    G --> H["Toast « Repère n°X ajouté » / « déplacé »"]
+```
+
 ## Composants d'interface
 
 Les composants sont ceux de shadcn/ui (même API, mêmes styles). Seuls `Dialog`, `AlertDialog`, `Tabs` et `DropdownMenu` sont réimplémentés sur les **éléments natifs** du navigateur (`<dialog>`, attribut `popover`, positionnement par ancre CSS, motif ARIA des onglets) plutôt que sur Radix. Voir `DECISIONS.md`, n° 13. Le tri utilise un `<select>` natif. Les suggestions de saisie utilisent `<datalist>`, et les zones de texte s'agrandissent avec leur contenu grâce à `field-sizing: content` (sans JavaScript).
 
-En test (jsdom), `src/test/domPolyfills.ts` simule `showModal()` et l'API Popover.
+En test (jsdom), `src/test/domPolyfills.ts` simule `showModal()`, l'API Popover, la capture de pointeur et `ResizeObserver`.
+
+Les téléchargements (plan annoté, puis rapport Word) passent par `downloadBlob` (`src/lib/download.ts`) : `<a download>` sur une URL `blob:`.

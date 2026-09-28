@@ -92,9 +92,30 @@ Chrome et Edge ne décodent pas le HEIC. Un décodeur WASM (libheif) pèserait p
 Le traitement se fait sur le fil principal, une photo à la fois.
 Un worker demanderait soit un fichier de script séparé, impossible avec un fichier unique, soit du code chargé depuis un Blob : plus complexe à construire et à tester, avec la CSP à assouplir. `createImageBitmap` décode déjà hors du fil principal ; il ne reste que le dessin et l'encodage (~0,5 s pour une photo de 12 Mpx, mesuré en e2e). L'interface reste utilisable pendant l'import, avec progression et annulation.
 
-## 19. Outillage (étape 1)
+## 19. pdf.js sans worker, build « legacy » (étape 6)
+
+Les plans PDF sont rendus par pdf.js dans le fil principal (« fake worker » via `globalThis.pdfjsWorker`), sans aucune ressource externe (pas de CMaps, polices standard ni WASM).
+Un worker exigerait un script séparé (impossible avec un fichier unique) ou du code chargé depuis un Blob (CSP à assouplir). Le rendu d'un plan est ponctuel et prend moins d'une seconde. La build « legacy » est choisie parce que la build moderne exige des API JavaScript plus récentes que Chrome 141 : les postes d'entreprise ne sont pas toujours à jour. Coût : ~1,7 Mo dans `index.html`. Un test de faisabilité e2e (`plan-feasibility.spec.ts`) vérifie ce montage en `file://`, sous la CSP de production.
+
+## 20. Plafond global de 2,5 Mo au lieu de budgets par étape (étape 6)
+
+Les budgets de taille par étape sont remplacés par un plafond global de **2,5 Mo** pour `dist/index.html`.
+pdf.js représente à lui seul ~1,7 Mo, que rien ne peut remplacer pour lire les PDF d'AutoCAD. Le reste de l'outil pèse ~0,64 Mo. Il reste ~0,13 Mo de marge, à surveiller pour la génération du rapport Word (étape 10).
+
+## 21. Plans en PNG et JPEG uniquement (étape 6)
+
+Un plan est stocké en PNG (rendu PDF, ou JPEG 0,9 au-delà de 6 Mo) ou dans le format de l'image importée (PNG, JPEG). WebP, GIF et HEIC sont refusés.
+Le plan annoté sera intégré au rapport Word, qui accepte PNG et JPEG. Pour un plan, le PNG conserve la netteté des traits fins et des textes.
+
+## 22. Une photo, un repère (étape 6)
+
+Une photo a au plus un repère. La replacer déplace son repère (même numéro) au lieu d'en créer un second.
+Le rapport associe chaque photo à un numéro sur le plan : un numéro par photo évite les ambiguïtés (« quel repère correspond à cette photo ? »), et la numérotation reste stable.
+
+## 23. Outillage (étape 1)
 
 - **TypeScript 6.0 et non 7.0** : TypeScript 7 (compilateur natif) est sorti, mais `typescript-eslint` ne supporte que `>=4.8.4 <6.1.0`. On reste sur 6.0.x jusqu'à ce que le lint typé soit compatible.
 - **Composants shadcn/ui** : sources officielles (style `new-york-v4`) placées dans `src/components/ui/`, adaptées pour `Toaster` en mode clair uniquement (sans `next-themes`). Ils peuvent être régénérés ou complétés avec `npx shadcn@latest add <composant>` grâce à `components.json`.
+- **Locale UTF-8 pour Playwright** : sous un Linux minimal (locale `C`), Chromium enregistre les téléchargements aux noms accentués sous le nom « download ». La configuration Playwright force `LANG=C.UTF-8`. Chrome et Edge sous Windows ne sont pas concernés.
 - **Tests et types Node** : `tsconfig.test.json` couvre les tests (types Node, Vitest) ; le code applicatif (`tsconfig.app.json`) n'a pas accès aux API Node. En test, `fake-indexeddb` remplace IndexedDB et le `Blob` natif de Node remplace celui de jsdom, que `structuredClone` ne sait pas copier.
 - **Mode clair uniquement** : la variante `dark:` de Tailwind est liée à une classe `.dark` jamais posée, pour ignorer le thème sombre du système.

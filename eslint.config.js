@@ -7,7 +7,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
+  globalIgnores(['dist', 'dist-probe', 'coverage', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -90,7 +90,7 @@ export default defineConfig([
   },
   {
     // Tests index into known fixtures; `!` keeps them readable.
-    files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.ts'],
+    files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.ts', 'tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
     },

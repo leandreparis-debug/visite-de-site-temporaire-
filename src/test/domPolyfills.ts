@@ -71,3 +71,16 @@ if (typeof HTMLElement.prototype.showPopover !== 'function') {
     for (const open of document.querySelectorAll<HTMLElement>(`[${OPEN}]`)) open.hidePopover()
   })
 }
+
+// Pointer capture and ResizeObserver (used by the plan canvas).
+if (typeof Element.prototype.setPointerCapture !== 'function') {
+  Element.prototype.setPointerCapture = () => undefined
+  Element.prototype.releasePointerCapture = () => undefined
+}
+if (typeof globalThis.ResizeObserver !== 'function') {
+  globalThis.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+}
