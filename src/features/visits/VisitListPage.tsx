@@ -14,6 +14,7 @@ import { VISIT_KINDS, type VisitKind } from '@/types/visit'
 import { CreateVisitDialog } from './CreateVisitDialog'
 import { useVisitSummaries } from './useVisits'
 import { VisitActionDialogs, type VisitAction } from './VisitActionDialogs'
+import { useReportDates } from '@/features/report/reportMeta'
 import { VisitCard } from './VisitCard'
 import {
   DEFAULT_VISIT_FILTERS,
@@ -42,6 +43,7 @@ export function VisitListPage() {
   const [action, setAction] = useState<VisitAction | null>(null)
   // Reference time for "Modifiée il y a …".
   const now = useNow()
+  const reportDates = useReportDates()
 
   const shown = useMemo(
     () => (visits ? filterAndSortVisits(visits, filters) : []),
@@ -176,7 +178,12 @@ export function VisitListPage() {
             {shown.map((visit) => (
               <li key={visit.id} className="flex">
                 <div className="w-full [&>article]:h-full">
-                  <VisitCard visit={visit} now={now} onAction={setAction} />
+                  <VisitCard
+                    visit={visit}
+                    now={now}
+                    onAction={setAction}
+                    reportGeneratedAt={reportDates[visit.id]}
+                  />
                 </div>
               </li>
             ))}

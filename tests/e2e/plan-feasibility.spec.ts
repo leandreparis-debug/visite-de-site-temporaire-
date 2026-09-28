@@ -12,13 +12,14 @@ test.beforeAll(() => {
     ['vite', 'build', '--config', 'vite.probe.config.ts', '--logLevel', 'error'],
     {
       cwd: root,
+      env: { ...process.env, PROBE: 'pdf', VITE_CONFIG_NATIVE_IGNORE_WARNING: 'true' },
       stdio: 'inherit',
     },
   )
 })
 
 test('pdf.js renders page 1 in the main thread, in file://, under the CSP', async ({ page }) => {
-  expect(readdirSync(resolve(root, 'dist-probe'))).toEqual(['pdf-probe.html'])
+  expect(readdirSync(resolve(root, 'dist-probe/pdf'))).toEqual(['pdf-probe.html'])
   const problems: string[] = []
   page.on('console', (m) => {
     if (m.type() === 'error') problems.push(`console: ${m.text()}`)
@@ -29,7 +30,7 @@ test('pdf.js renders page 1 in the main thread, in file://, under the CSP', asyn
   })
   page.on('worker', (w) => problems.push(`worker created: ${w.url()}`))
 
-  await page.goto(pathToFileURL(resolve(root, 'dist-probe/pdf-probe.html')).href)
+  await page.goto(pathToFileURL(resolve(root, 'dist-probe/pdf/pdf-probe.html')).href)
   await page
     .locator('#file')
     .setInputFiles(resolve(root, 'tests/fixtures/plans/entrepot-2-pages.pdf'))

@@ -13,7 +13,7 @@ import type { StoredVisit } from '@/types/visit'
 
 export const DB_NAME = 'cp-compte-rendu'
 
-/** Key/value store for technical metadata (e.g. last export date, step 9). */
+/** Key/value store for technical metadata (report dates, closed notices…). */
 export interface MetaEntry {
   key: string
   value: unknown

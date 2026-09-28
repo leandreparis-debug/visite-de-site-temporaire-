@@ -8,10 +8,12 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 describe('meta', () => {
   it('stores and reads validated values', async () => {
-    expect(await getMeta('lastExportAt')).toBeUndefined()
-    await setMeta('lastExportAt', '2026-09-28T10:00:00.000Z')
-    expect(await getMeta('lastExportAt')).toBe('2026-09-28T10:00:00.000Z')
-    await expect(setMeta('lastExportAt', 'hier')).rejects.toBeInstanceOf(ValidationError)
+    expect(await getMeta('storageNoticeDismissedAt')).toBeUndefined()
+    await setMeta('storageNoticeDismissedAt', '2026-09-28T10:00:00.000Z')
+    expect(await getMeta('storageNoticeDismissedAt')).toBe('2026-09-28T10:00:00.000Z')
+    await expect(setMeta('storageNoticeDismissedAt', 'hier')).rejects.toBeInstanceOf(
+      ValidationError,
+    )
   })
 
   it('recordAppOpened writes lastOpenedAt', async () => {

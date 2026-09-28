@@ -47,7 +47,7 @@ export default defineConfig([
   {
     // Pure operation (replayed by the autosave) and view modules: no ids, clocks or
     // randomness inside (see docs/ARCHITECTURE.md, "Règle des fonctions pures").
-    files: ['src/**/*Ops.ts', 'src/**/*View.ts'],
+    files: ['src/**/*Ops.ts', 'src/**/*View.ts', 'src/features/report/model/**/*.ts'],
     ignores: ['src/**/*.test.ts'],
     rules: {
       'no-restricted-imports': [

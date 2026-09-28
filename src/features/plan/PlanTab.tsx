@@ -74,10 +74,14 @@ export function PlanTab({ visit, update }: VisitTabProps) {
   )
   // Put the active plan in the URL when none is requested. A requested plan
   // not (yet) in the list — e.g. just imported, before the live query
-  // refreshes — is never overwritten.
+  // refreshes — is never overwritten. Only while the URL is on the plan tab:
+  // when leaving it, this component may render once more with the new URL
+  // (e.g. re-rendered by the save started on tab change) and must not bring
+  // the user back to the plan.
+  const onPlanTab = route.name === 'visit' && route.tab === 'plan'
   useEffect(() => {
-    if (activePlan && !requestedPlanId) selectPlan(activePlan.id, true)
-  }, [activePlan, requestedPlanId, selectPlan])
+    if (onPlanTab && activePlan && !requestedPlanId) selectPlan(activePlan.id, true)
+  }, [onPlanTab, activePlan, requestedPlanId, selectPlan])
 
   const photosById = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos])
   const photoNumber = useCallback(

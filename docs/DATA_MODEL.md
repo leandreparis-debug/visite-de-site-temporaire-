@@ -11,7 +11,7 @@ Trois tables IndexedDB (base `cp-compte-rendu`, Dexie, version 1) contiennent le
 | `visits` | `id`, `updatedAt`, `date`, `kind`  | La visite et tous ses sous-objets **légers** (JSON, pas de binaire).  |
 | `photos` | `id`, `visitId`, `[visitId+order]` | Une photo par ligne : `blob` + `thumbnailBlob`.                       |
 | `plans`  | `id`, `visitId`, `[visitId+order]` | Un plan par ligne : `blob` (image ; les PDF sont convertis en image). |
-| `meta`   | `key`                              | Métadonnées techniques (`lastOpenedAt`, `lastExportAt`…).             |
+| `meta`   | `key`                              | Métadonnées techniques (`lastOpenedAt`, `reportGeneratedAt`, `storageNoticeDismissedAt`).             |
 
 ```mermaid
 erDiagram

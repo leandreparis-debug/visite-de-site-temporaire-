@@ -10,8 +10,10 @@ import { timestampSchema } from '@/types/common'
 export const metaSchemas = {
   /** Last time the tool was opened on this computer. */
   lastOpenedAt: timestampSchema,
-  /** Last export of a visit file (step 9). */
-  lastExportAt: timestampSchema,
+  /** Last Word report generated, per visit id (the report is the only lasting archive). */
+  reportGeneratedAt: z.record(z.string(), timestampSchema),
+  /** The storage information banner of the visit list was closed. */
+  storageNoticeDismissedAt: timestampSchema,
 } as const
 
 export type MetaKey = keyof typeof metaSchemas
@@ -24,10 +26,11 @@ const metaEntrySchema = z.object({ key: z.string().check(z.minLength(1)), value:
  * @returns the value, or `undefined` if absent or no longer valid.
  */
 export function getMeta<K extends MetaKey>(key: K): Promise<MetaValue<K> | undefined> {
-  return withStorageErrors(async () => {
+  return withStorageErrors(async (): Promise<MetaValue<K> | undefined> => {
     const entry = await db.meta.get(key)
     const parsed = z.safeParse(metaSchemas[key], entry?.value)
-    return parsed.success ? parsed.data : undefined
+    // The schemas differ per key: TypeScript cannot narrow the union by K.
+    return parsed.success ? (parsed.data as MetaValue<K>) : undefined
   })
 }
 

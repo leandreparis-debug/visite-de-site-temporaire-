@@ -1,11 +1,4 @@
-import {
-  ArrowLeft,
-  CalendarDays,
-  Construction,
-  FileSearch,
-  MapPin,
-  type LucideIcon,
-} from 'lucide-react'
+import { ArrowLeft, CalendarDays, FileCheck2, FileSearch, MapPin } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from '@/app/Link'
 import { navigate, type VisitTab } from '@/app/router'
@@ -19,6 +12,8 @@ import { PhotosTab } from '@/features/photos/PhotosTab'
 import { PlanTab } from '@/features/plan/PlanTab'
 import { summarizeProjects } from '@/features/projects/projectView'
 import { ProjectsCostsTab } from '@/features/projects/ProjectsCostsTab'
+import { formatReportGenerated, useReportDates } from '@/features/report/reportMeta'
+import { ReportTab } from '@/features/report/ReportTab'
 import { useLiveResult } from '@/lib/db/useLiveResult'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -57,6 +52,7 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
   const [action, setAction] = useState<VisitAction | null>(null)
   const { data: photoCount } = useLiveResult(() => countPhotos(visitId), `photo-count-${visitId}`)
   const today = useToday()
+  const reportDates = useReportDates()
 
   if (isLoading) return <EditorSkeleton />
   if (!draft) {
@@ -121,6 +117,12 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
             <MapPin className="size-4" aria-hidden="true" />
             {draft.site.name}
           </span>
+          {reportDates[draft.id] && (
+            <span className="flex items-center gap-1.5 text-success">
+              <FileCheck2 className="size-4" aria-hidden="true" />
+              {formatReportGenerated(reportDates[draft.id] ?? '')}
+            </span>
+          )}
         </div>
       </header>
 
@@ -167,7 +169,7 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
             ) : value === 'projects-costs' ? (
               <ProjectsCostsTab visit={draft} update={update} />
             ) : (
-              <ComingSoon icon={Construction} label={TAB_LABELS[value]} />
+              <ReportTab visit={draft} flush={flush} />
             )}
           </TabsContent>
         ))}
@@ -205,16 +207,6 @@ function BackLink({ onNavigate }: { onNavigate?: () => void }) {
       <ArrowLeft className="size-4" aria-hidden="true" />
       Visites
     </Link>
-  )
-}
-
-function ComingSoon({ icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <EmptyState
-      icon={icon}
-      title="Bientôt disponible"
-      description={`L’onglet « ${label} » arrive dans une prochaine étape.`}
-    />
   )
 }
 

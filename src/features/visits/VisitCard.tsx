@@ -1,7 +1,8 @@
-import { CalendarDays, Camera, MapPin, MapPinned } from 'lucide-react'
+import { CalendarDays, Camera, FileCheck2, MapPin, MapPinned } from 'lucide-react'
 import { Link } from '@/app/Link'
 import { navigate } from '@/app/router'
 import { formatDateFr, formatRelativeFr } from '@/lib/dates'
+import { formatReportGenerated } from '@/features/report/reportMeta'
 import { pluralize } from '@/lib/notify'
 import type { VisitSummary } from '@/types/visit'
 import { VisitActionsMenu } from './VisitActionsMenu'
@@ -12,13 +13,15 @@ export interface VisitCardProps {
   visit: VisitSummary
   onAction: (action: VisitAction) => void
   now: number
+  /** Timestamp of the last Word report of this visit, if any. */
+  reportGeneratedAt?: string
 }
 
 /**
  * Visit card of the list. The title link covers the whole card (click anywhere
  * opens the visit); the actions menu sits above it.
  */
-export function VisitCard({ visit, onAction, now }: VisitCardProps) {
+export function VisitCard({ visit, onAction, now, reportGeneratedAt }: VisitCardProps) {
   const target = { id: visit.id, title: visit.title }
   const route = { name: 'visit', visitId: visit.id, tab: 'general' } as const
   return (
@@ -60,6 +63,14 @@ export function VisitCard({ visit, onAction, now }: VisitCardProps) {
           </dt>
           <dd>{formatDateFr(visit.date)}</dd>
         </div>
+        {reportGeneratedAt && (
+          <div className="flex items-center gap-1.5 text-success">
+            <dt>
+              <FileCheck2 className="size-3.5" aria-label="Rapport Word" />
+            </dt>
+            <dd>{formatReportGenerated(reportGeneratedAt)}</dd>
+          </div>
+        )}
       </dl>
       <div className="mt-4 flex items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
         <span>Modifiée {formatRelativeFr(visit.updatedAt, now)}</span>
