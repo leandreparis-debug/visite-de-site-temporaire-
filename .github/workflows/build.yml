@@ -1,0 +1,122 @@
+# Build de l'outil (fichier unique) à chaque push, publié comme artefact.
+# Sur un tag v*, crée aussi une GitHub Release avec le HTML et le guide.
+# Les tests e2e (Playwright) ne sont pas lancés ici, pour garder le workflow
+# rapide : ils sont exécutés par `npm run release` avant chaque diffusion.
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Vérifications et build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      html: ${{ steps.version.outputs.html }}
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node (version de .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+        env:
+          # Les navigateurs Playwright ne servent qu'aux tests e2e.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Lire la version (package.json)
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "html=CR-Visites-Carrefour-Property-v$version.html" >> "$GITHUB_OUTPUT"
+
+      - name: Vérifier que le tag correspond à la version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Le tag $TAG ne correspond pas à la version v$VERSION de package.json."
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitaires
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Contrôle du fichier unique
+        run: npm run check:single
+
+      - name: Préparer le fichier à diffuser
+        run: |
+          mkdir -p out
+          cp dist/index.html "out/${{ steps.version.outputs.html }}"
+
+      - name: Publier l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.html }}
+          path: out/${{ steps.version.outputs.html }}
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Récupérer le fichier HTML construit
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.html }}
+          path: out
+
+      - name: Créer la release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Version ${{ needs.build.outputs.version }}
+          body: |
+            Comptes rendus de visite — Carrefour Property, version ${{ needs.build.outputs.version }}.
+
+            - **${{ needs.build.outputs.html }}** : l'outil, en un seul fichier. Double-cliquez dessus pour l'ouvrir dans Chrome ou Edge (sans Internet ni installation).
+            - **GUIDE_UTILISATEUR.md** : le guide utilisateur (même contenu que le bouton « Aide » de l'outil).
+
+            Mise à jour : remplacez l'ancien fichier HTML par le nouveau ; les visites sont conservées (même navigateur, même poste). Nouveautés : voir CHANGELOG.md.
+          files: |
+            out/${{ needs.build.outputs.html }}
+            docs/GUIDE_UTILISATEUR.md
+          fail_on_unmatched_files: true

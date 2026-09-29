@@ -13,6 +13,17 @@ Outil **autonome et temporaire** pour les Property Managers de Carrefour Propert
 
 ---
 
+## Récupérer l'outil sans environnement de développement
+
+Pas besoin d'installer Node.js : GitHub construit l'outil automatiquement (workflow [`.github/workflows/build.yml`](.github/workflows/build.yml)).
+
+- **Dernière version construite (n'importe quelle branche)** : sur la page du dépôt GitHub, onglet **Actions** → workflow **« Build »** → cliquer sur le **dernier run vert** (✔) de la branche voulue → en bas de la page, rubrique **Artifacts** → télécharger **`CR-Visites-Carrefour-Property-v1.0.0.html`**. GitHub le livre dans un `.zip` : l'extraire pour obtenir le fichier HTML. Les artefacts sont conservés **30 jours**.
+- **Version officielle** : sur la page du dépôt, rubrique **Releases** (colonne de droite) → la version voulue (par exemple **Version 1.0.0**) → pièces jointes **`CR-Visites-Carrefour-Property-v1.0.0.html`** et **`GUIDE_UTILISATEUR.md`**. Une release est créée automatiquement à chaque tag `v*` poussé (par exemple `v1.0.0`) ; le tag doit correspondre à la version de `package.json`, sinon le workflow échoue.
+
+Le workflow vérifie à chaque push : `npm ci`, typecheck, lint, tests unitaires, build et `check:single`. Les tests e2e (Playwright) n'y sont pas lancés, pour qu'il reste rapide : ils font partie de `npm run release` (voir ci-dessous), à lancer avant toute diffusion officielle. Il peut aussi être lancé à la main : onglet **Actions** → **Build** → **Run workflow**.
+
+---
+
 ## Diffuser une nouvelle version
 
 1. Mettre à jour le numéro de version dans `package.json` et le [`CHANGELOG.md`](CHANGELOG.md).
@@ -210,6 +221,7 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
 ├── playwright.config.ts       # Tests e2e (Chromium)
 ├── eslint.config.js           # ESLint flat config
 ├── components.json            # Configuration shadcn/ui
+├── .github/workflows/build.yml # CI : vérifications, build, artefact, release sur tag v*
 ├── CHANGELOG.md               # Historique des versions
 ├── docs/
 │   ├── ARCHITECTURE.md        # Couches, routage par hash, enregistrement automatique, rapport Word
