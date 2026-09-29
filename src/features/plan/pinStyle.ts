@@ -9,7 +9,7 @@ import type { PhotoCategory } from '@/types/media'
 export const PIN_COLORS: Record<PhotoCategory, string> = {
   defect: '#e1000f', // accent-red
   safety: '#ea7a00', // orange
-  equipment: '#004e9f', // brand blue
+  equipment: '#004e9f', // blue
   works: '#7c3aed', // violet
   general: '#374151', // dark grey
   other: '#374151',

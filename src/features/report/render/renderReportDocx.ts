@@ -1,7 +1,9 @@
 /**
  * Mechanical translation of the report model into a Word document (`docx`).
  * No business logic here: texts, order, tones and omissions all come from
- * `buildReportModel`; styles from `docxStyles`.
+ * `buildReportModel`; the visual identity from `docxStyles`.
+ *
+ * Every page is A4 portrait (annotated plans included).
  *
  * Loaded lazily (dynamic import) at the first generation, like pdf.js: the
  * library is inlined in the single file but only evaluated when needed.
@@ -33,6 +35,7 @@ import {
   TextRun,
   VerticalAlignTable,
   WidthType,
+  type IBorderOptions,
   type ISectionOptions,
 } from 'docx'
 import type {
@@ -43,17 +46,20 @@ import type {
   ReportPhoto,
   ReportSection,
   ReportTable,
+  SummaryItem,
   Tone,
 } from '../model/reportModel'
 import {
   CELL_MARGINS,
-  contentWidthTwips,
+  CONTENT_WIDTH,
   FONT_SIZES,
   fitImage,
   IMAGE_BOXES,
+  LABEL_SPACING,
   PAGE,
   REPORT_COLORS,
   REPORT_FONT,
+  TONE_ACCENTS,
   TONE_COLORS,
 } from './docxStyles'
 
@@ -76,17 +82,30 @@ type Block = Paragraph | Table
 
 // ─── Small builders ──────────────────────────────────────────────────────────
 
-function run(
-  text: string,
-  options: { tone?: Tone; bold?: boolean; italic?: boolean; size?: number; color?: string } = {},
-): TextRun {
+interface RunOptions {
+  tone?: Tone
+  bold?: boolean
+  italic?: boolean
+  size?: number
+  color?: string
+  caps?: boolean
+}
+
+function run(text: string, options: RunOptions = {}): TextRun {
   return new TextRun({
     text,
     bold: options.bold,
     italics: options.italic,
     size: options.size,
+    allCaps: options.caps,
+    characterSpacing: options.caps ? LABEL_SPACING : undefined,
     color: options.color ?? (options.tone ? TONE_COLORS[options.tone] : undefined),
   })
+}
+
+/** Small uppercase, letter-spaced label (cover, cards). */
+function label(text: string, color: string = REPORT_COLORS.muted): TextRun {
+  return run(text, { caps: true, bold: true, size: FONT_SIZES.label, color })
 }
 
 function paragraph(
@@ -106,6 +125,17 @@ function paragraph(
   })
 }
 
+const line = (color: string = REPORT_COLORS.line, size = 4): IBorderOptions => ({
+  style: BorderStyle.SINGLE,
+  size,
+  color,
+})
+const NONE: IBorderOptions = { style: BorderStyle.NONE, size: 0, color: REPORT_COLORS.white }
+
+/**
+ * Titre 1 (rule underneath) or Titre 2 (plum accent bar on the left), native
+ * Word styles so that the navigation pane lists them.
+ */
 function heading(
   text: string,
   level: 1 | 2,
@@ -116,6 +146,10 @@ function heading(
     heading: level === 1 ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2,
     pageBreakBefore: options.pageBreakBefore,
     keepNext: true,
+    border:
+      level === 1
+        ? { bottom: { ...line(REPORT_COLORS.line, 6), space: 6 } }
+        : { left: { ...line(REPORT_COLORS.brand, 24), space: 8 } },
   })
 }
 
@@ -127,23 +161,13 @@ function image(asset: ReportImage, box: { width: number; height: number }): Imag
   })
 }
 
-const THIN_BORDER = { style: BorderStyle.SINGLE, size: 4, color: REPORT_COLORS.border }
-const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: REPORT_COLORS.white }
-const GRID_BORDERS = {
-  top: THIN_BORDER,
-  bottom: THIN_BORDER,
-  left: THIN_BORDER,
-  right: THIN_BORDER,
-  insideHorizontal: THIN_BORDER,
-  insideVertical: THIN_BORDER,
-}
 const NO_BORDERS = {
-  top: NO_BORDER,
-  bottom: NO_BORDER,
-  left: NO_BORDER,
-  right: NO_BORDER,
-  insideHorizontal: NO_BORDER,
-  insideVertical: NO_BORDER,
+  top: NONE,
+  bottom: NONE,
+  left: NONE,
+  right: NONE,
+  insideHorizontal: NONE,
+  insideVertical: NONE,
 }
 
 /** Column widths in twips, proportional to `weights`, summing to `total`. */
@@ -154,21 +178,25 @@ function columnWidths(weights: readonly number[], total: number): number[] {
   return widths
 }
 
+function spacer(after = 120): Paragraph {
+  return new Paragraph({ children: [], spacing: { after } })
+}
+
+// ─── Tables and cards ────────────────────────────────────────────────────────
+
 function tableCell(
   cell: Cell,
   width: number,
   options: { right: boolean; header?: boolean },
 ): TableCell {
-  const shaded = options.header || cell.shaded
+  const fill = options.header
+    ? REPORT_COLORS.brand
+    : cell.shaded
+      ? REPORT_COLORS.brandSoft
+      : undefined
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
-    shading: shaded
-      ? {
-          type: ShadingType.CLEAR,
-          color: 'auto',
-          fill: options.header ? REPORT_COLORS.brandSoft : REPORT_COLORS.shade,
-        }
-      : undefined,
+    shading: fill ? { type: ShadingType.CLEAR, color: 'auto', fill } : undefined,
     verticalAlign: VerticalAlignTable.CENTER,
     children: [
       new Paragraph({
@@ -178,7 +206,7 @@ function tableCell(
             tone: cell.tone,
             bold: options.header || cell.bold,
             size: FONT_SIZES.table,
-            color: options.header ? REPORT_COLORS.brand : undefined,
+            color: options.header ? REPORT_COLORS.white : undefined,
           }),
         ],
       }),
@@ -186,10 +214,12 @@ function tableCell(
   })
 }
 
-/** A data table: header row repeated on each page, rows never split. */
-function dataTable(table: ReportTable, landscape = false): Table {
-  const total = contentWidthTwips(landscape)
-  const widths = columnWidths(table.widths, total)
+/**
+ * A data table: plum header row (repeated on each page), thin horizontal
+ * rules only, rows never split.
+ */
+function dataTable(table: ReportTable): Table {
+  const widths = columnWidths(table.widths, CONTENT_WIDTH)
   const right = new Set(table.rightAligned ?? [])
   const row = (cells: readonly Cell[], header: boolean) =>
     new TableRow({
@@ -200,10 +230,17 @@ function dataTable(table: ReportTable, landscape = false): Table {
       ),
     })
   return new Table({
-    width: { size: total, type: WidthType.DXA },
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
-    borders: GRID_BORDERS,
+    borders: {
+      top: NONE,
+      left: NONE,
+      right: NONE,
+      insideVertical: NONE,
+      bottom: line(),
+      insideHorizontal: line(),
+    },
     margins: CELL_MARGINS,
     rows: [
       row(
@@ -215,23 +252,22 @@ function dataTable(table: ReportTable, landscape = false): Table {
   })
 }
 
-/** A framed box (one-cell table): summary, deadlines. */
-function box(children: Paragraph[], options: { fill: string; border: string }): Table {
-  const total = contentWidthTwips(false)
-  const border = { style: BorderStyle.SINGLE, size: 8, color: options.border }
+/** A tinted callout with a coloured accent bar on the left (deadlines…). */
+function callout(children: Paragraph[], accent: string): Table {
   return new Table({
-    width: { size: total, type: WidthType.DXA },
-    columnWidths: [total],
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: [CONTENT_WIDTH],
     layout: TableLayoutType.FIXED,
-    borders: { top: border, bottom: border, left: border, right: border },
-    margins: { top: 120, bottom: 120, left: 180, right: 180 },
+    borders: NO_BORDERS,
+    margins: { top: 140, bottom: 140, left: 220, right: 220 },
     rows: [
       new TableRow({
         cantSplit: true,
         children: [
           new TableCell({
-            width: { size: total, type: WidthType.DXA },
-            shading: { type: ShadingType.CLEAR, color: 'auto', fill: options.fill },
+            width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, color: 'auto', fill: REPORT_COLORS.shade },
+            borders: { top: NONE, bottom: NONE, right: NONE, left: line(accent, 36) },
             children: children.length ? children : [new Paragraph('')],
           }),
         ],
@@ -240,8 +276,52 @@ function box(children: Paragraph[], options: { fill: string; border: string }): 
   })
 }
 
-function spacer(after = 120): Paragraph {
-  return new Paragraph({ children: [], spacing: { after } })
+/** Summary as a grid of key-figure cards (2 per row), accent colour by tone. */
+function kpiGrid(items: readonly SummaryItem[]): Table {
+  const widths = columnWidths([1, 1], CONTENT_WIDTH)
+  const gap = line(REPORT_COLORS.white, 48)
+  const card = (item: SummaryItem | undefined, width: number) =>
+    new TableCell({
+      width: { size: width, type: WidthType.DXA },
+      shading: item
+        ? { type: ShadingType.CLEAR, color: 'auto', fill: REPORT_COLORS.shade }
+        : undefined,
+      borders: item
+        ? { top: gap, bottom: gap, right: gap, left: line(TONE_ACCENTS[item.tone], 36) }
+        : { top: gap, bottom: gap, right: gap, left: gap },
+      margins: { top: 140, bottom: 140, left: 220, right: 160 },
+      children: item
+        ? [
+            paragraph([label(item.label)], { spacingAfter: 40 }),
+            paragraph(
+              [
+                run(item.value, {
+                  bold: true,
+                  size: FONT_SIZES.kpi,
+                  color: item.tone === 'normal' ? REPORT_COLORS.ink : TONE_COLORS[item.tone],
+                }),
+              ],
+              { spacingAfter: 0 },
+            ),
+          ]
+        : [new Paragraph('')],
+    })
+  const rows: TableRow[] = []
+  for (let i = 0; i < items.length; i += 2) {
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [card(items[i], widths[0] ?? 0), card(items[i + 1], widths[1] ?? 0)],
+      }),
+    )
+  }
+  return new Table({
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: widths,
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+    rows,
+  })
 }
 
 // ─── Sections ────────────────────────────────────────────────────────────────
@@ -255,9 +335,7 @@ function noteBlocks(blocks: readonly NoteBlock[]): Paragraph[] {
       : [
           new Paragraph({
             spacing: { after: 120 },
-            children: block.lines.map(
-              (line, i) => new TextRun({ text: line, break: i > 0 ? 1 : 0 }),
-            ),
+            children: block.lines.map((text, i) => new TextRun({ text, break: i > 0 ? 1 : 0 })),
           }),
         ],
   )
@@ -270,46 +348,45 @@ function photoCell(
   width: number,
 ) {
   const imageBox = large ? IMAGE_BOXES.photoLarge : IMAGE_BOXES.photoSmall
-  const lines: Paragraph[] = [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 60 },
-      children: asset ? [image(asset, imageBox)] : [run('Image indisponible', { tone: 'muted' })],
-    }),
-    new Paragraph({
-      spacing: { after: 0 },
-      children: [
-        run(photo.numberLabel, { bold: true, size: FONT_SIZES.small }),
-        ...(photo.pinLabel
-          ? [
-              run(`  ·  ${photo.pinLabel}`, {
-                bold: true,
-                size: FONT_SIZES.small,
-                color: REPORT_COLORS.brand,
-              }),
-            ]
-          : []),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 0 },
-      children: [
-        run(photo.caption, {
-          size: FONT_SIZES.small,
-          tone: photo.captionMissing ? 'muted' : undefined,
-          italic: photo.captionMissing,
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 0 },
-      children: [run(photo.details, { size: FONT_SIZES.small, tone: 'muted' })],
-    }),
-  ]
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
-    margins: { top: 80, bottom: 160, left: 80, right: 80 },
-    children: lines,
+    margins: { top: 80, bottom: 200, left: 100, right: 100 },
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: asset ? [image(asset, imageBox)] : [run('Image indisponible', { tone: 'muted' })],
+      }),
+      new Paragraph({
+        spacing: { after: 20 },
+        children: [
+          run(photo.numberLabel, { bold: true, size: FONT_SIZES.small, color: REPORT_COLORS.ink }),
+          ...(photo.pinLabel
+            ? [
+                run(`   ${photo.pinLabel}`, {
+                  bold: true,
+                  size: FONT_SIZES.small,
+                  color: REPORT_COLORS.brand,
+                }),
+              ]
+            : []),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 20 },
+        children: [
+          run(photo.caption, {
+            size: FONT_SIZES.small,
+            tone: photo.captionMissing ? 'muted' : undefined,
+            italic: photo.captionMissing,
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 0 },
+        children: [run(photo.details, { size: FONT_SIZES.label, tone: 'muted' })],
+      }),
+    ],
   })
 }
 
@@ -319,8 +396,7 @@ function photoCell(
  */
 function photoGrid(photos: readonly ReportPhoto[], perPage: 2 | 6, assets: ReportAssets): Block[] {
   const columns = perPage === 2 ? 1 : 2
-  const total = contentWidthTwips(false)
-  const widths = columnWidths(Array<number>(columns).fill(1), total)
+  const widths = columnWidths(Array<number>(columns).fill(1), CONTENT_WIDTH)
   const blocks: Block[] = []
   for (let start = 0; start < photos.length; start += perPage) {
     const page = photos.slice(start, start + perPage)
@@ -341,7 +417,7 @@ function photoGrid(photos: readonly ReportPhoto[], perPage: 2 | 6, assets: Repor
       blocks.push(new Paragraph({ children: [], pageBreakBefore: true, spacing: { after: 0 } }))
     blocks.push(
       new Table({
-        width: { size: total, type: WidthType.DXA },
+        width: { size: CONTENT_WIDTH, type: WidthType.DXA },
         columnWidths: widths,
         layout: TableLayoutType.FIXED,
         borders: NO_BORDERS,
@@ -355,33 +431,39 @@ function photoGrid(photos: readonly ReportPhoto[], perPage: 2 | 6, assets: Repor
 function doInsuranceBlocks(section: DoInsuranceSection): Block[] {
   const blocks: Block[] = []
   if (section.insurances) {
-    blocks.push(heading('Contrats d’assurance', 2), dataTable(section.insurances), spacer())
+    blocks.push(heading('Contrats d’assurance', 2), dataTable(section.insurances), spacer(240))
   }
   for (const claim of section.claims) {
     blocks.push(heading(`Sinistre ${claim.title}${claim.closed ? ' (clôturé)' : ''}`, 2))
-    claim.lines.forEach((line, i) =>
-      blocks.push(paragraph([run(line, { bold: i === 0 })], { spacingAfter: 40 })),
+    blocks.push(
+      paragraph([label(claim.status, claim.closed ? REPORT_COLORS.success : REPORT_COLORS.brand)], {
+        spacingAfter: 80,
+      }),
+    )
+    claim.lines.forEach((text, i) =>
+      blocks.push(
+        paragraph([run(text, { bold: i === 0, color: i === 0 ? REPORT_COLORS.ink : undefined })], {
+          spacingAfter: 40,
+        }),
+      ),
     )
     if (claim.amounts.length)
-      blocks.push(paragraph(claim.amounts.join('   ·   '), { spacingAfter: 40 }))
-    blocks.push(
-      paragraph([
-        run(claim.status, {
-          bold: true,
-          color: claim.closed ? REPORT_COLORS.success : REPORT_COLORS.brand,
-        }),
-      ]),
-    )
+      blocks.push(
+        paragraph([run(claim.amounts.join('    ·    '), { bold: true })], { spacingAfter: 80 }),
+      )
     for (const warning of claim.warnings)
       blocks.push(paragraph([run(warning, { tone: 'warning' })]))
     if (claim.steps) blocks.push(dataTable(claim.steps), spacer())
     if (claim.deadlines) {
+      const worst = claim.deadlines.entries.some((e) => e.tone === 'danger')
+        ? 'danger'
+        : claim.deadlines.entries.some((e) => e.tone === 'warning')
+          ? 'warning'
+          : 'normal'
       blocks.push(
-        box(
+        callout(
           [
-            paragraph([run('Délais', { bold: true, color: REPORT_COLORS.brand })], {
-              spacingAfter: 60,
-            }),
+            paragraph([label('Délais', REPORT_COLORS.brand)], { spacingAfter: 60 }),
             paragraph([run(claim.deadlines.intro)], { spacingAfter: 60 }),
             ...claim.deadlines.entries.map((entry) =>
               paragraph([run(entry.text, { tone: entry.tone, bold: entry.tone === 'danger' })], {
@@ -396,246 +478,223 @@ function doInsuranceBlocks(section: DoInsuranceSection): Block[] {
                   size: FONT_SIZES.small,
                 }),
               ],
-              {
-                spacingAfter: 0,
-              },
+              { spacingAfter: 0 },
             ),
           ],
-          { fill: REPORT_COLORS.shade, border: REPORT_COLORS.border },
+          TONE_ACCENTS[worst],
         ),
-        spacer(240),
+        spacer(280),
       )
     }
   }
   return blocks
 }
 
-/** Blocks of one section, split in pages of each orientation. */
-interface Part {
-  landscape: boolean
-  blocks: Block[]
-}
-
-function sectionParts(section: ReportSection, assets: ReportAssets, startsPart: boolean): Part[] {
+function sectionBlocks(section: ReportSection, assets: ReportAssets): Block[] {
   const title = heading(section.title, 1)
   switch (section.key) {
     case 'summary':
-      return [
-        {
-          landscape: false,
-          blocks: [
-            title,
-            box(
-              section.items.map((item) =>
-                paragraph(
-                  [
-                    run(`${item.label} : `, { bold: true }),
-                    run(item.value, { tone: item.tone, bold: item.tone === 'danger' }),
-                  ],
-                  { spacingAfter: 60 },
-                ),
-              ),
-              { fill: REPORT_COLORS.brandSoft, border: REPORT_COLORS.brand },
-            ),
-          ],
-        },
-      ]
+      return [title, kpiGrid(section.items)]
     case 'general':
       return [
-        {
-          landscape: false,
-          blocks: [
-            title,
-            ...(section.purpose
-              ? [paragraph([run('Objet : ', { bold: true }), run(section.purpose)])]
-              : []),
-            ...(section.present ? [heading('Présents', 2), dataTable(section.present)] : []),
-            ...(section.absent ? [heading('Absents / excusés', 2), dataTable(section.absent)] : []),
-          ],
-        },
+        title,
+        ...(section.purpose
+          ? [
+              paragraph([label('Objet')], { spacingAfter: 40 }),
+              paragraph([run(section.purpose)], { spacingAfter: 200 }),
+            ]
+          : []),
+        ...(section.present ? [heading('Présents', 2), dataTable(section.present)] : []),
+        ...(section.absent ? [heading('Absents / excusés', 2), dataTable(section.absent)] : []),
       ]
     case 'notes':
       return [
-        {
-          landscape: false,
-          blocks: [
-            title,
-            ...section.zones.flatMap((zone) => [
-              heading(zone.title, 2),
-              ...noteBlocks(zone.blocks),
-            ]),
-          ],
-        },
+        title,
+        ...section.zones.flatMap((zone) => [heading(zone.title, 2), ...noteBlocks(zone.blocks)]),
       ]
     case 'attention':
       return [
-        {
-          landscape: false,
-          blocks: [title, paragraph(section.summary), dataTable(section.table)],
-        },
+        title,
+        paragraph([label(section.summary, REPORT_COLORS.brand)], { spacingAfter: 120 }),
+        dataTable(section.table),
       ]
     case 'plans':
-      // One landscape section per plan; the section title on the first one.
-      return section.plans.map((plan, index) => {
+      // Portrait, one plan per page: title, annotated plan at full width, pins table.
+      return section.plans.flatMap((plan, index) => {
         const asset = assets.plans.get(plan.planId)
-        return {
-          landscape: true,
-          blocks: [
-            ...(index === 0 ? [title] : []),
-            heading(plan.name, 2),
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              spacing: { after: 120 },
-              children: asset
-                ? [image(asset, IMAGE_BOXES.plan)]
-                : [run('Plan indisponible', { tone: 'muted' })],
-            }),
-            ...(plan.pins ? [dataTable(plan.pins, true)] : []),
-          ],
-        }
+        return [
+          ...(index === 0 ? [heading(section.title, 1, { pageBreakBefore: true })] : []),
+          heading(plan.name, 2, { pageBreakBefore: index > 0 }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 160 },
+            children: asset
+              ? [image(asset, IMAGE_BOXES.plan)]
+              : [run('Plan indisponible', { tone: 'muted' })],
+          }),
+          ...(plan.pins ? [dataTable(plan.pins)] : []),
+        ]
       })
     case 'photos':
       return [
-        {
-          landscape: false,
-          blocks: [
-            heading(section.title, 1, { pageBreakBefore: !startsPart }),
-            ...photoGrid(section.photos, section.perPage, assets),
-          ],
-        },
+        heading(section.title, 1, { pageBreakBefore: true }),
+        ...photoGrid(section.photos, section.perPage, assets),
       ]
     case 'doInsurance':
-      return [{ landscape: false, blocks: [title, ...doInsuranceBlocks(section)] }]
+      return [heading(section.title, 1, { pageBreakBefore: true }), ...doInsuranceBlocks(section)]
     case 'projectsCosts':
       return [
-        {
-          landscape: false,
-          blocks: [
-            title,
-            ...(section.projects
-              ? [heading('Projets', 2), dataTable(section.projects), spacer()]
-              : []),
-            ...(section.costs ? [heading('Coûts', 2), dataTable(section.costs)] : []),
-          ],
-        },
+        title,
+        ...(section.projects
+          ? [heading('Projets', 2), dataTable(section.projects), spacer(240)]
+          : []),
+        ...(section.costs ? [heading('Coûts', 2), dataTable(section.costs)] : []),
       ]
   }
 }
 
 // ─── Cover, header, footer ───────────────────────────────────────────────────
 
+/** Borderless two-column "label / value" table of the cover. */
+function coverFacts(rows: readonly [string, string[]][]): Table {
+  const widths = columnWidths([1, 3], CONTENT_WIDTH)
+  return new Table({
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: widths,
+    layout: TableLayoutType.FIXED,
+    borders: { ...NO_BORDERS, insideHorizontal: line(), bottom: line(), top: line() },
+    margins: { top: 140, bottom: 140, left: 0, right: 100 },
+    rows: rows.map(
+      ([name, values]) =>
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({
+              width: { size: widths[0] ?? 0, type: WidthType.DXA },
+              verticalAlign: VerticalAlignTable.TOP,
+              children: [paragraph([label(name)], { spacingAfter: 0 })],
+            }),
+            new TableCell({
+              width: { size: widths[1] ?? 0, type: WidthType.DXA },
+              children: values.map((value, i) =>
+                paragraph(
+                  [
+                    run(value, {
+                      size: i === 0 ? FONT_SIZES.coverValue : FONT_SIZES.body,
+                      bold: i === 0,
+                      color: i === 0 ? REPORT_COLORS.ink : REPORT_COLORS.muted,
+                    }),
+                  ],
+                  { spacingAfter: 20 },
+                ),
+              ),
+            }),
+          ],
+        }),
+    ),
+  })
+}
+
 function coverBlocks(model: ReportModel, assets: ReportAssets): Block[] {
   const { cover } = model
-  const total = contentWidthTwips(false)
+  const [siteName = '', ...siteDetails] = cover.siteLines
+  const facts: [string, string[]][] = [
+    ['Site', [siteName, ...siteDetails]],
+    ['Date', [cover.dateLine]],
+    ...(cover.author ? [['Rédacteur', [cover.author]] as [string, string[]]] : []),
+  ]
   const band = new Table({
-    width: { size: total, type: WidthType.DXA },
-    columnWidths: [total],
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: [CONTENT_WIDTH],
     layout: TableLayoutType.FIXED,
     borders: NO_BORDERS,
-    margins: { top: 480, bottom: 480, left: 360, right: 360 },
+    margins: { top: 200, bottom: 200, left: 280, right: 280 },
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: total, type: WidthType.DXA },
+            width: { size: CONTENT_WIDTH, type: WidthType.DXA },
             shading: { type: ShadingType.CLEAR, color: 'auto', fill: REPORT_COLORS.brand },
             children: [
-              paragraph(
-                [
-                  run(cover.kindTitle.toUpperCase(), {
+              new Paragraph({
+                tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH - 560 }],
+                children: [
+                  label(model.footer.text, REPORT_COLORS.white),
+                  run(`\t${cover.generatedLine}`, {
+                    size: FONT_SIZES.small,
                     color: REPORT_COLORS.white,
-                    size: FONT_SIZES.coverKind,
-                    bold: true,
                   }),
                 ],
-                {
-                  spacingAfter: 240,
-                },
-              ),
-              paragraph(
-                [
-                  run(cover.title, {
-                    color: REPORT_COLORS.white,
-                    size: FONT_SIZES.coverTitle,
-                    bold: true,
-                  }),
-                ],
-                {
-                  spacingAfter: 0,
-                },
-              ),
+              }),
             ],
           }),
         ],
       }),
     ],
   })
-  const [siteName, ...siteDetails] = cover.siteLines
   return [
     new Paragraph({
-      spacing: { after: 1200 },
-      children: [image(assets.logo, { width: 400, height: IMAGE_BOXES.coverLogoHeight })],
+      spacing: { after: 2200 },
+      children: [image(assets.logo, IMAGE_BOXES.coverLogo)],
     }),
+    paragraph([label(cover.kindTitle, REPORT_COLORS.brand)], { spacingAfter: 160 }),
+    new Paragraph({
+      spacing: { after: 360, line: 240, lineRule: LineRuleType.AUTO },
+      border: { bottom: { ...line(REPORT_COLORS.brand, 18), space: 14 } },
+      children: [
+        run(cover.title, { bold: true, size: FONT_SIZES.coverTitle, color: REPORT_COLORS.ink }),
+      ],
+    }),
+    spacer(400),
+    coverFacts(facts),
+    spacer(3600),
     band,
-    spacer(720),
-    paragraph(
-      [run(siteName ?? '', { bold: true, size: FONT_SIZES.coverSite, color: REPORT_COLORS.brand })],
-      {
-        spacingAfter: 80,
-      },
-    ),
-    ...siteDetails.map((line) =>
-      paragraph([run(line, { size: FONT_SIZES.cover })], { spacingAfter: 40 }),
-    ),
-    spacer(480),
-    paragraph([
-      run('Date : ', { bold: true, size: FONT_SIZES.cover }),
-      run(cover.dateLine, { size: FONT_SIZES.cover }),
-    ]),
-    ...(cover.author
-      ? [
-          paragraph([
-            run('Rédacteur : ', { bold: true, size: FONT_SIZES.cover }),
-            run(cover.author, { size: FONT_SIZES.cover }),
-          ]),
-        ]
-      : []),
-    spacer(1200),
-    paragraph([run(cover.generatedLine, { tone: 'muted', size: FONT_SIZES.small })]),
   ]
 }
 
-function pageHeader(model: ReportModel, assets: ReportAssets, landscape: boolean): Header {
+function pageHeader(model: ReportModel, assets: ReportAssets): Header {
   return new Header({
     children: [
       new Paragraph({
-        tabStops: [{ type: TabStopType.RIGHT, position: contentWidthTwips(landscape) }],
-        border: {
-          bottom: { style: BorderStyle.SINGLE, size: 4, color: REPORT_COLORS.border, space: 4 },
-        },
+        tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH }],
+        border: { bottom: { ...line(), space: 6 } },
         children: [
-          image(assets.logo, { width: 200, height: IMAGE_BOXES.headerLogoHeight }),
-          run(`\t${model.header.siteName} — ${model.header.date}`, {
+          image(assets.logo, IMAGE_BOXES.headerLogo),
+          run(`\t${model.header.siteName}`, {
             size: FONT_SIZES.small,
-            tone: 'muted',
+            bold: true,
+            color: REPORT_COLORS.ink,
           }),
+          run(`   ${model.header.date}`, { size: FONT_SIZES.small, tone: 'muted' }),
         ],
       }),
     ],
   })
 }
 
-function pageFooter(model: ReportModel, landscape: boolean): Footer {
+function pageFooter(model: ReportModel): Footer {
   return new Footer({
     children: [
       new Paragraph({
-        tabStops: [{ type: TabStopType.RIGHT, position: contentWidthTwips(landscape) }],
+        tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH }],
+        border: { top: { ...line(), space: 6 } },
         children: [
-          run(model.footer.text, { size: FONT_SIZES.small, tone: 'muted' }),
+          run(model.footer.text, { size: FONT_SIZES.label, tone: 'muted' }),
           new TextRun({
             size: FONT_SIZES.small,
             color: REPORT_COLORS.muted,
-            children: ['\tPage ', PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES],
+            children: ['\tPage '],
+          }),
+          new TextRun({
+            size: FONT_SIZES.small,
+            bold: true,
+            color: REPORT_COLORS.brand,
+            children: [PageNumber.CURRENT],
+          }),
+          new TextRun({
+            size: FONT_SIZES.small,
+            color: REPORT_COLORS.muted,
+            children: [' / ', PageNumber.TOTAL_PAGES],
           }),
         ],
       }),
@@ -643,44 +702,28 @@ function pageFooter(model: ReportModel, landscape: boolean): Footer {
   })
 }
 
-function pageProperties(landscape: boolean): ISectionOptions['properties'] {
-  return {
-    page: {
-      size: {
-        width: PAGE.width,
-        height: PAGE.height,
-        orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
-      },
-      margin: PAGE.margin,
-    },
-  }
+const PAGE_PROPERTIES: ISectionOptions['properties'] = {
+  page: {
+    size: { width: PAGE.width, height: PAGE.height, orientation: PageOrientation.PORTRAIT },
+    margin: PAGE.margin,
+  },
 }
 
 /**
  * Builds the `docx` Document of a report model: cover page (no header or
- * footer), then portrait pages, one landscape section per plan, and header
- * (logo, site, date) / footer (internal document, "Page X / Y") everywhere
- * else.
+ * footer), then the content pages, all A4 portrait, with header (logo, site,
+ * date) and footer (internal document, "Page X / Y").
  */
 export function buildReportDocument(model: ReportModel, assets: ReportAssets): Document {
-  // Merge consecutive blocks of the same orientation into Word sections.
-  const parts: Part[] = []
-  for (const section of model.sections) {
-    const last = parts.at(-1)
-    for (const part of sectionParts(section, assets, !last || last.landscape)) {
-      const current = parts.at(-1)
-      if (current && !current.landscape && !part.landscape) current.blocks.push(...part.blocks)
-      else parts.push({ landscape: part.landscape, blocks: [...part.blocks] })
-    }
-  }
+  const content = model.sections.flatMap((section) => sectionBlocks(section, assets))
   const sections: ISectionOptions[] = [
-    { properties: pageProperties(false), children: coverBlocks(model, assets) },
-    ...parts.map((part) => ({
-      properties: pageProperties(part.landscape),
-      headers: { default: pageHeader(model, assets, part.landscape) },
-      footers: { default: pageFooter(model, part.landscape) },
-      children: part.blocks,
-    })),
+    { properties: PAGE_PROPERTIES, children: coverBlocks(model, assets) },
+    {
+      properties: PAGE_PROPERTIES,
+      headers: { default: pageHeader(model, assets) },
+      footers: { default: pageFooter(model) },
+      children: content,
+    },
   ]
   return new Document({
     creator: model.cover.author ?? 'Carrefour Property',
@@ -691,7 +734,7 @@ export function buildReportDocument(model: ReportModel, assets: ReportAssets): D
         document: {
           run: { font: REPORT_FONT, size: FONT_SIZES.body, color: REPORT_COLORS.text },
           // lineRule AUTO: an exact line height would clip inline images.
-          paragraph: { spacing: { line: 264, lineRule: LineRuleType.AUTO } },
+          paragraph: { spacing: { line: 276, lineRule: LineRuleType.AUTO } },
         },
         heading1: {
           run: {
@@ -700,16 +743,16 @@ export function buildReportDocument(model: ReportModel, assets: ReportAssets): D
             bold: true,
             color: REPORT_COLORS.brand,
           },
-          paragraph: { spacing: { before: 360, after: 180 } },
+          paragraph: { spacing: { before: 480, after: 240 } },
         },
         heading2: {
           run: {
             font: REPORT_FONT,
             size: FONT_SIZES.heading2,
             bold: true,
-            color: REPORT_COLORS.text,
+            color: REPORT_COLORS.ink,
           },
-          paragraph: { spacing: { before: 240, after: 100 } },
+          paragraph: { spacing: { before: 320, after: 140 } },
         },
       },
     },

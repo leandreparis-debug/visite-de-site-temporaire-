@@ -272,7 +272,7 @@ function insurancesTable(visit: Visit, todayIso: string): ReportTable | null {
   if (visit.insurances.length === 0) return null
   return {
     headers: ['Type', 'Assureur', 'N° de police', 'Courtier', 'Début', 'Fin', 'Validité'],
-    widths: [2.6, 3, 2.2, 2.2, 2.1, 2.1, 2.8],
+    widths: [2.6, 2.8, 2.3, 2.1, 2.2, 2.2, 2.6],
     rows: sortInsurancesForDisplay(visit.insurances, todayIso).map((insurance) => {
       const validity = getInsuranceValidity(insurance, todayIso)
       return [
@@ -366,7 +366,7 @@ function projectsTable(visit: Visit): ReportTable | null {
   if (visit.projects.length === 0) return null
   return {
     headers: ['Projet', 'Statut', 'Responsable', 'Période', 'Lignes', 'Total HT', 'Total TTC'],
-    widths: [3.8, 1.8, 2.3, 2.4, 1.7, 2.5, 2.5],
+    widths: [3.4, 1.8, 2.7, 2.4, 1.5, 2.5, 2.5],
     rightAligned: [4, 5, 6],
     rows: sortProjectsForDisplay(visit.projects).map((project) => {
       const totals = getProjectCostTotals(project, visit.costs)
@@ -442,7 +442,7 @@ function costsTable(visit: Visit): ReportTable | null {
   ])
   return {
     headers: ['Libellé', 'Fournisseur', 'Catégorie', 'Statut', 'Montant HT', 'TVA %', 'TVA', 'TTC'],
-    widths: [3.2, 1.9, 1.6, 1.6, 2.5, 1.3, 2.4, 2.5],
+    widths: [2.7, 2.6, 2.0, 1.6, 2.4, 1.3, 1.9, 2.4],
     rightAligned: [4, 5, 6, 7],
     rows,
   }

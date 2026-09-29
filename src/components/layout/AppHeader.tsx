@@ -7,7 +7,7 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b bg-surface/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-6">
-        <BrandLogo height={32} />
+        <BrandLogo height={44} />
         <Separator orientation="vertical" className="h-8!" />
         <div className="min-w-0">
           <h1 className="truncate text-base leading-tight font-semibold">

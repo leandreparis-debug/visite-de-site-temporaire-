@@ -159,10 +159,11 @@ Risque accepté : perte des visites en cas de changement de poste, de navigateur
 Le rapport n'a pas de table des matières. Les rubriques utilisent les styles de titres natifs de Word (Titre 1, Titre 2) : le **volet de navigation** de Word les affiche et permet d'y accéder.
 Une table des matières Word est un champ (`TOC`) calculé par Word : générée hors de Word, elle est vide ou fausse tant que l'utilisateur n'a pas accepté de « mettre à jour les champs » à l'ouverture. Ce message inquiète et la table serait fausse si on le refuse. Seuls les champs de numérotation des pages (« Page X / Y ») sont utilisés : Word les met à jour seul, sans question.
 
-## 31. Plans annotés en sections paysage (étape 10)
+## 31. Rapport tout en portrait, repères agrandis (étape 10, révisé après retours)
 
-Chaque plan annoté occupe une **section Word en A4 paysage**, avec l'image en pleine largeur puis le tableau de ses repères ; le reste du rapport est en portrait.
-Les plans d'entrepôt sont presque toujours plus larges que hauts (formats A3 / A1 paysage) : en portrait, ils seraient réduits de moitié et illisibles. Une section par plan permet aussi à chaque plan de commencer sur une nouvelle page. La planche photos utilise des tableaux sans bordure à lignes insécables (2 ou 6 photos par page) pour qu'aucune photo ne soit coupée entre deux pages.
+Toutes les pages du rapport sont en **A4 portrait**, plans compris : c'est la demande des Property Managers (impression et lecture à l'écran homogènes). Chaque plan annoté commence sur une nouvelle page, en pleine largeur, suivi du tableau de ses repères.
+Un plan d'entrepôt (souvent A3 / A1 paysage) est alors réduit à 17 cm de large. Pour que les numéros restent lisibles, les repères de l'image générée mesurent **4 % du grand côté** (≈ 6 mm sur la page, au lieu de ≈ 2 mm auparavant) et la légende grandit avec eux. À l'écran, les repères gardent leur taille fixe de 28 px.
+Première version (abandonnée) : une section paysage par plan, jugée peu pratique et des repères trop petits. La planche photos utilise des tableaux sans bordure à lignes insécables (2 ou 6 photos par page) pour qu'aucune photo ne soit coupée entre deux pages.
 
 ## 32. Outillage (étape 1)
 

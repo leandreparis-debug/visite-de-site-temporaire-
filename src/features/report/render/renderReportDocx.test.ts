@@ -62,15 +62,17 @@ describe('renderReportDocx', () => {
     expect(document).toContain('Repère n°1')
     for (const section of model.sections)
       expect(document).toContain(section.title.replace('’', '’'))
-    expect(document).toContain('Compte rendu de visite technique'.toUpperCase())
+    // Kind label: small capitals rendered by Word (allCaps), source text unchanged.
+    expect(document).toContain('Compte rendu de visite technique')
+    expect(document).toContain('<w:caps/>')
     expect(document).toContain('Généré le 28 septembre 2026 à 14h05')
     // Grand total, formatted like on screen.
     const projects = model.sections.find((s) => s.key === 'projectsCosts')
     if (projects?.key !== 'projectsCosts') throw new Error('no costs')
     expect(document).toContain(formatEuros(projects.totalCents.ttc))
     expect(document).toContain('Total général')
-    // One landscape section per plan (2 plans).
-    expect(document.match(/w:orient="landscape"/g)).toHaveLength(2)
+    // Every page is portrait: no landscape section, even for the plans.
+    expect(document).not.toContain('w:orient="landscape"')
     // Native headings for the navigation pane, no field-based table of contents.
     expect(document).toContain('w:pStyle w:val="Heading1"')
     expect(document).toContain('w:pStyle w:val="Heading2"')
@@ -90,7 +92,8 @@ describe('renderReportDocx', () => {
     expect(headers.length).toBeGreaterThan(0)
     expect(footers.length).toBeGreaterThan(0)
     const header = await read(headers[0]!)
-    expect(header).toContain('Entrepôt Lyon Nord — 28/09/2026')
+    expect(header).toContain('Entrepôt Lyon Nord')
+    expect(header).toContain('28/09/2026')
     const footer = await read(footers[0]!)
     expect(footer).toContain('Document interne — Carrefour Property')
     expect(footer).toContain('PAGE')

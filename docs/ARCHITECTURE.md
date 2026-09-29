@@ -220,7 +220,7 @@ Toute la logique est dans des modules purs, sans React, réutilisés par l'ongle
 Le rapport est produit en **deux couches** (`src/features/report/`) :
 
 1. **Modèle pur** — `model/buildReportModel.ts` reçoit la visite, les métadonnées des photos et des plans, les options, « aujourd'hui » et l'heure de génération, et renvoie un `ReportModel` **sérialisable** (`model/reportModel.ts`) : rubriques dans l'ordre, titres numérotés, textes déjà formatés en français, tons (rouge, orange, gris…), tableaux, identifiants des images. **Toute la logique est là** (quoi afficher, ordre, omissions, totaux, alertes), et elle réutilise les modules de calcul existants (`attentionPointView`, `doView`, `doInsuranceOverview`, `insuranceView`, `projectView`, `costView`, `money`, `dates`) : le rapport montre exactement les mêmes chiffres que les écrans. Aucune horloge n'est lue (règle ESLint des fonctions pures étendue à `report/model/`). `parseNoteContent` transforme le texte des notes en paragraphes et listes à puces ; `reportContents.ts` fournit l'aperçu des rubriques et les « points à vérifier » de l'onglet ; `estimateReportSize.ts` l'estimation de taille.
-2. **Rendu mécanique** — `render/renderReportDocx.ts` traduit le modèle en objets `docx`, sans aucune décision métier : page de garde, sections portrait / paysage, en-tête et pied de page, tableaux, encadrés, grille de photos. Couleurs, polices, tailles et géométrie des pages viennent d'une seule source : `render/docxStyles.ts`.
+2. **Rendu mécanique** — `render/renderReportDocx.ts` traduit le modèle en objets `docx`, sans aucune décision métier : page de garde, pages A4 portrait, en-tête et pied de page, tableaux, encadrés, grille de photos. Couleurs, polices, tailles et géométrie des pages viennent d'une seule source : `render/docxStyles.ts`.
 
 Pipeline de génération (`useReportGeneration`) :
 
@@ -242,7 +242,7 @@ flowchart LR
 | Standard | 1600 px, JPEG 0,8  | 3000 px, PNG                          |
 | Allégée  | 1000 px, JPEG 0,75 | 2000 px, PNG                          |
 
-Le logo (SVG inliné) est rastérisé en PNG. Les images sont dédupliquées par `docx` (empreinte SHA-1) : le logo de la page de garde et des en-têtes n'est stocké qu'une fois.
+Le logo (PNG inliné) est rastérisé en PNG à la taille voulue. Les images sont dédupliquées par `docx` (empreinte SHA-1) : le logo de la page de garde et des en-têtes n'est stocké qu'une fois.
 
 **Compatibilité Word** : styles de titres natifs (volet de navigation), pas de table des matières par champ, seuls les champs `PAGE` / `NUMPAGES` au pied de page, interligne en mode « auto » (un interligne exact rognerait les images en ligne), tableaux à largeurs fixes en twips, lignes insécables pour les photos. Le rendu est vérifié par les tests (`renderReportDocx.test.ts` ouvre l'archive générée en Node ; `report.spec.ts` télécharge le fichier depuis l'application en `file://`).
 

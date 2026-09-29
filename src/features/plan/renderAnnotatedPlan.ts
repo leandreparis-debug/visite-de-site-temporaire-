@@ -15,9 +15,13 @@ import {
 /** Default long side of the annotated plan (for the Word report). */
 export const ANNOTATED_MAX_LONG_SIDE = 3000
 
-/** Pin diameter on the generated image: ~1.4 % of the long side, 24 px minimum. */
+/**
+ * Pin diameter on the generated image: ~4 % of the long side, 32 px minimum.
+ * Large on purpose: the plan is scaled down to the width of an A4 page in the
+ * report, where the numbers must stay readable (≈ 6 mm per pin on a full-width plan).
+ */
 export function annotatedPinDiameter(longSide: number): number {
-  return Math.max(24, Math.round(longSide * 0.014))
+  return Math.max(32, Math.round(longSide * 0.04))
 }
 
 /** Legend rows for the categories actually present (order of `PIN_LEGEND`). */

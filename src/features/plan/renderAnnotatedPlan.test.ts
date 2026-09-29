@@ -6,9 +6,10 @@ import {
 } from '@/features/plan/renderAnnotatedPlan'
 
 describe('annotated plan helpers', () => {
-  it('sizes pins at ~1.4 % of the long side, 24 px minimum', () => {
-    expect(annotatedPinDiameter(3000)).toBe(42)
-    expect(annotatedPinDiameter(1000)).toBe(24)
+  it('sizes pins at ~4 % of the long side, 32 px minimum', () => {
+    expect(annotatedPinDiameter(3000)).toBe(120)
+    expect(annotatedPinDiameter(1000)).toBe(40)
+    expect(annotatedPinDiameter(500)).toBe(32)
   })
 
   it('lists only the categories present in the legend', () => {

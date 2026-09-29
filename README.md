@@ -127,7 +127,8 @@ Le workflow vérifie à chaque push : `npm ci`, typecheck, lint, tests unitaires
 - **Options** : planche photos à **6 par page** (par défaut) ou **2 par page** (grand format), « Uniquement les photos placées sur un plan », qualité des images **Standard** (photos à 1600 px) ou **Allégée** (1000 px, pour un envoi par mail). La **taille estimée** du fichier se met à jour.
 - **Points à vérifier** (en orange, non bloquants) : incohérences de montants DO, photos sans légende, sinistres sans date de déclaration, rédacteur manquant, sections de notes vides. Chaque point mène à l'onglet concerné.
 - **« Générer le rapport Word »** : les dernières modifications sont enregistrées, puis la progression s'affiche (« Préparation des plans… », « Photos 12 / 42… », « Assemblage du document… »). Le fichier **`CR - site - AAAA-MM-JJ.docx`** est téléchargé. En cas d'erreur, un message l'explique avec un bouton **« Réessayer »**.
-- **Contenu** : page de garde (logo, type de compte rendu, titre, site, date, rédacteur), en-tête et pied de page (« Page X / Y ») sur les pages suivantes, puis : 1. Synthèse (alertes en rouge), 2. Informations générales (présents, absents / excusés), 3. Observations par zone (puces pour les lignes « - »), 4. Points d'attention, 5. Plans annotés (une page **paysage** par plan, avec le tableau des repères), 6. Planche photos (aucune photo coupée entre deux pages), 7. Dommages-Ouvrage et assurances (étapes, délais indicatifs), 8. Projets et coûts (totaux par stade, total général).
+- **Mise en page** : A4 **portrait** sur toutes les pages, aux couleurs de Carrefour Property (prune du logo) : titres soulignés, synthèse en cartes, tableaux à en-tête coloré et filets horizontaux, encadrés à liseré.
+- **Contenu** : page de garde (logo, type de compte rendu, titre, site, date, rédacteur), en-tête et pied de page (« Page X / Y ») sur les pages suivantes, puis : 1. Synthèse (alertes en rouge), 2. Informations générales (présents, absents / excusés), 3. Observations par zone (puces pour les lignes « - »), 4. Points d'attention, 5. Plans annotés (une page par plan, en pleine largeur, avec le tableau des repères), 6. Planche photos (aucune photo coupée entre deux pages), 7. Dommages-Ouvrage et assurances (étapes, délais indicatifs), 8. Projets et coûts (totaux par stade, total général).
 - Le document utilise les styles de titres de Word : le **volet de navigation** de Word affiche les rubriques. Il n'y a pas de table des matières (elle obligerait à « mettre à jour les champs » à l'ouverture).
 - La date du dernier rapport s'affiche dans l'en-tête de la visite et sur sa carte dans la liste (« Rapport généré le … »). **Le rapport est la seule copie durable de la visite** : enregistrez-le sur le réseau ou dans le dossier du site.
 
@@ -204,14 +205,13 @@ npm run typecheck && npm run lint && npm run test && npm run build && npm run ch
 
 ### Remplacer le logo
 
-> ℹ️ **Le logo actuel est PROVISOIRE** : `src/assets/logo/carrefour-property.svg` est une pastille bleue avec le texte « Carrefour Property », créée faute de logo officiel. Il doit être remplacé.
+Le logo officiel est `src/assets/logo/carrefour-property.png` (pastille prune, fond transparent). Pour le changer :
 
-1. Déposer le logo officiel dans `src/assets/logo/` sous le nom **`carrefour-property.svg`** (recommandé) ou **`carrefour-property.png`**.
-2. Si vous utilisez un PNG, **supprimer** le SVG provisoire (le SVG est prioritaire quand les deux existent).
-3. `npm run build` : le logo est automatiquement inliné dans `index.html`.
-4. Ajuster si besoin `--color-brand` dans `src/styles/globals.css` sur le bleu exact du logo.
+1. Déposer le nouveau logo dans `src/assets/logo/` sous le nom **`carrefour-property.png`** ou **`carrefour-property.svg`** (le SVG est prioritaire quand les deux existent).
+2. `npm run build` : le logo est automatiquement inliné dans `index.html`.
+3. Ajuster si besoin `--color-brand` dans `src/styles/globals.css` (application) et `REPORT_COLORS.brand` dans `src/features/report/render/docxStyles.ts` (rapport Word) sur la couleur exacte du logo (actuellement `#8D2562`).
 
-Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans haute densité).
+Pour un PNG, prévoir une hauteur d'au moins 88 px (affichage à 44 px, écrans haute densité).
 
 ### Arborescence
 
@@ -261,7 +261,7 @@ Pour un PNG, prévoir une hauteur d'au moins 64 px (affichage à 32 px, écrans 
     │   ├── ErrorBoundary.tsx  # Erreur de rendu : message FR + « Recharger l'outil »
     │   ├── globalErrorHandlers.ts # window.onerror / unhandledrejection → toast
     │   └── initStorage.ts     # Stockage persistant + vérification d'IndexedDB au démarrage
-    ├── assets/logo/           # Logo Carrefour Property (provisoire, à remplacer)
+    ├── assets/logo/           # Logo Carrefour Property (PNG)
     ├── components/
     │   ├── ui/                # Composants shadcn/ui (dialog, tabs, dropdown-menu : version native)
     │   ├── form/              # DraftInput/DraftTextarea/DraftAmountInput (champs liés au brouillon),

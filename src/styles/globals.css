@@ -20,20 +20,21 @@
   --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
 
   /* Brand */
-  --color-brand: #004e9f;
+  /* Carrefour Property plum (logo). */
+  --color-brand: #8d2562;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: #e8f0fa;
+  --color-brand-soft: #f7ecf2;
   /* Reserved for alerts and critical statuses. */
   --color-accent-red: #e1000f;
   --color-accent-red-foreground: #ffffff;
 
   /* Neutrals */
-  --color-background: #f4f6f9;
+  --color-background: #f7f5f7;
   --color-surface: #ffffff;
-  --color-border: #e1e6ed;
-  --color-muted: #eef1f5;
-  --color-muted-foreground: #5b6574;
-  --color-foreground: #0f1b2d;
+  --color-border: #e8e3e8;
+  --color-muted: #f2eff2;
+  --color-muted-foreground: #5f5866;
+  --color-foreground: #1d1720;
 
   /* Statuses */
   --color-success: #1a7f45;
@@ -44,7 +45,7 @@
   --color-danger-foreground: #ffffff;
 
   /* Light card shadow */
-  --shadow-card: 0 1px 2px 0 rgb(15 27 45 / 0.04), 0 1px 3px 0 rgb(15 27 45 / 0.06);
+  --shadow-card: 0 1px 2px 0 rgb(29 23 32 / 0.04), 0 2px 8px -2px rgb(29 23 32 / 0.06);
 }
 
 /* Variables expected by shadcn/ui, mapped onto the tokens above. */
@@ -68,7 +69,7 @@
   --accent-foreground: var(--color-brand);
   --destructive: var(--color-danger);
   --border: var(--color-border);
-  --input: #cfd7e1;
+  --input: #d9d2da;
   --ring: var(--color-brand);
 }
 

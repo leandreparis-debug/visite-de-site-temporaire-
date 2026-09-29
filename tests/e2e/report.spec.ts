@@ -46,7 +46,7 @@ test('Word report of a complete visit in file://', async ({ page }) => {
   const zip = await JSZip.loadAsync(standard.bytes)
   const document = (await zip.file('word/document.xml')?.async('string')) ?? ''
   for (const text of [
-    'COMPTE RENDU DE VISITE TECHNIQUE',
+    'Compte rendu de visite technique',
     'Visite annuelle Lyon',
     'Entrepôt Lyon / Nord',
     '1. Synthèse',
@@ -73,7 +73,8 @@ test('Word report of a complete visit in file://', async ({ page }) => {
     ((1_250_050 + 185_000 + 3_200_000 + 98_040) * 1.2) / 100,
   )
   expect(document).toContain(ttc)
-  expect(document.match(/w:orient="landscape"/g)).toHaveLength(1)
+  // Portrait everywhere, plans included.
+  expect(document).not.toContain('w:orient="landscape"')
   const media = Object.values(zip.files).filter((f) => !f.dir && f.name.startsWith('word/media/'))
   // 5 photos + 1 plan + the logo.
   expect(media).toHaveLength(7)

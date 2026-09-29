@@ -11,7 +11,7 @@ export interface BrandLogoProps {
 /**
  * Carrefour Property logo.
  *
- * Loads `src/assets/logo/carrefour-property.svg`, or `.png` if no SVG exists.
+ * Loads `src/assets/logo/carrefour-property.png` (an `.svg` of the same name takes precedence).
  * Always exposes `alt="Carrefour Property"` for accessibility and tests.
  *
  * @example <BrandLogo height={40} />
