@@ -79,14 +79,20 @@ export const CONTENT_WIDTH = PAGE.width - PAGE.margin.left - PAGE.margin.right
 /** Usable width in pixels (96 dpi). */
 const CONTENT_WIDTH_PX = Math.floor(CONTENT_WIDTH / TWIPS_PER_PX)
 
-/** Boxes (px) of the images: plan under its title, photos 2 or 6 per page, logos. */
+/** Boxes (px) of the images: plan under its title, photos 2, 4 or 6 per page, logos. */
 export const IMAGE_BOXES = {
   /** Full width of the portrait page, room left for the plan title. */
   plan: { width: CONTENT_WIDTH_PX, height: 760 },
   /** 2 per page: one per row, full width. */
   photoLarge: { width: CONTENT_WIDTH_PX - 24, height: 330 },
+  /** 4 per page: 2 rows of 2. */
+  photoMedium: { width: Math.floor(CONTENT_WIDTH_PX / 2) - 24, height: 330 },
   /** 6 per page: 3 rows of 2. */
   photoSmall: { width: Math.floor(CONTENT_WIDTH_PX / 2) - 24, height: 200 },
+  /** Photos under an area of the observations, 2 per row. */
+  zonePhoto: { width: Math.floor(CONTENT_WIDTH_PX / 2) - 24, height: 230 },
+  /** Site photo of the cover, full width. */
+  coverPhoto: { width: CONTENT_WIDTH_PX, height: 400 },
   coverLogo: { width: 220, height: 96 },
   headerLogo: { width: 80, height: 26 },
 } as const

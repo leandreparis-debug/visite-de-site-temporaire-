@@ -42,6 +42,7 @@ import type {
   Cell,
   DoInsuranceSection,
   NoteBlock,
+  PhotosPerPage,
   ReportModel,
   ReportPhoto,
   ReportSection,
@@ -344,10 +345,9 @@ function noteBlocks(blocks: readonly NoteBlock[]): Paragraph[] {
 function photoCell(
   photo: ReportPhoto,
   asset: ReportImage | undefined,
-  large: boolean,
+  imageBox: { width: number; height: number },
   width: number,
 ) {
-  const imageBox = large ? IMAGE_BOXES.photoLarge : IMAGE_BOXES.photoSmall
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
     margins: { top: 80, bottom: 200, left: 100, right: 100 },
@@ -390,40 +390,60 @@ function photoCell(
   })
 }
 
+/** Borderless table of photos, `columns` per row, rows never split across pages. */
+function photoTable(
+  photos: readonly ReportPhoto[],
+  columns: 1 | 2,
+  box: { width: number; height: number },
+  assets: ReportAssets,
+): Table {
+  const widths = columnWidths(Array<number>(columns).fill(1), CONTENT_WIDTH)
+  const rows: TableRow[] = []
+  for (let i = 0; i < photos.length; i += columns) {
+    const cells = Array.from({ length: columns }, (_, c) => {
+      const photo = photos[i + c]
+      return photo
+        ? photoCell(photo, assets.photos.get(photo.photoId), box, widths[c] ?? 0)
+        : new TableCell({
+            width: { size: widths[c] ?? 0, type: WidthType.DXA },
+            children: [new Paragraph('')],
+          })
+    })
+    rows.push(new TableRow({ cantSplit: true, children: cells }))
+  }
+  return new Table({
+    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+    columnWidths: widths,
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+    rows,
+  })
+}
+
+const PHOTO_GRID: Record<
+  PhotosPerPage,
+  { columns: 1 | 2; box: { width: number; height: number } }
+> = {
+  2: { columns: 1, box: IMAGE_BOXES.photoLarge },
+  4: { columns: 2, box: IMAGE_BOXES.photoMedium },
+  6: { columns: 2, box: IMAGE_BOXES.photoSmall },
+}
+
 /**
- * Photo grid: one borderless table per page (2 or 6 photos), rows never
+ * Photo grid: one borderless table per page (2, 4 or 6 photos), rows never
  * split, a page break between pages: no photo is ever cut.
  */
-function photoGrid(photos: readonly ReportPhoto[], perPage: 2 | 6, assets: ReportAssets): Block[] {
-  const columns = perPage === 2 ? 1 : 2
-  const widths = columnWidths(Array<number>(columns).fill(1), CONTENT_WIDTH)
+function photoGrid(
+  photos: readonly ReportPhoto[],
+  perPage: PhotosPerPage,
+  assets: ReportAssets,
+): Block[] {
+  const { columns, box } = PHOTO_GRID[perPage]
   const blocks: Block[] = []
   for (let start = 0; start < photos.length; start += perPage) {
-    const page = photos.slice(start, start + perPage)
-    const rows: TableRow[] = []
-    for (let i = 0; i < page.length; i += columns) {
-      const cells = Array.from({ length: columns }, (_, c) => {
-        const photo = page[i + c]
-        return photo
-          ? photoCell(photo, assets.photos.get(photo.photoId), columns === 1, widths[c] ?? 0)
-          : new TableCell({
-              width: { size: widths[c] ?? 0, type: WidthType.DXA },
-              children: [new Paragraph('')],
-            })
-      })
-      rows.push(new TableRow({ cantSplit: true, children: cells }))
-    }
     if (start > 0)
       blocks.push(new Paragraph({ children: [], pageBreakBefore: true, spacing: { after: 0 } }))
-    blocks.push(
-      new Table({
-        width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-        columnWidths: widths,
-        layout: TableLayoutType.FIXED,
-        borders: NO_BORDERS,
-        rows,
-      }),
-    )
+    blocks.push(photoTable(photos.slice(start, start + perPage), columns, box, assets))
   }
   return blocks
 }
@@ -510,7 +530,13 @@ function sectionBlocks(section: ReportSection, assets: ReportAssets): Block[] {
     case 'notes':
       return [
         title,
-        ...section.zones.flatMap((zone) => [heading(zone.title, 2), ...noteBlocks(zone.blocks)]),
+        ...section.zones.flatMap((zone) => [
+          heading(zone.title, 2),
+          ...noteBlocks(zone.blocks),
+          ...(zone.photos.length
+            ? [photoTable(zone.photos, 2, IMAGE_BOXES.zonePhoto, assets), spacer(120)]
+            : []),
+        ]),
       ]
     case 'attention':
       return [
@@ -603,38 +629,10 @@ function coverBlocks(model: ReportModel, assets: ReportAssets): Block[] {
     ['Date', [cover.dateLine]],
     ...(cover.author ? [['Rédacteur', [cover.author]] as [string, string[]]] : []),
   ]
-  const band = new Table({
-    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-    columnWidths: [CONTENT_WIDTH],
-    layout: TableLayoutType.FIXED,
-    borders: NO_BORDERS,
-    margins: { top: 200, bottom: 200, left: 280, right: 280 },
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({
-            width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-            shading: { type: ShadingType.CLEAR, color: 'auto', fill: REPORT_COLORS.brand },
-            children: [
-              new Paragraph({
-                tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH - 560 }],
-                children: [
-                  label(model.footer.text, REPORT_COLORS.white),
-                  run(`\t${cover.generatedLine}`, {
-                    size: FONT_SIZES.small,
-                    color: REPORT_COLORS.white,
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    ],
-  })
+  const photo = cover.photoId === undefined ? undefined : assets.photos.get(cover.photoId)
   return [
     new Paragraph({
-      spacing: { after: 2200 },
+      spacing: { after: photo ? 900 : 2200 },
       children: [image(assets.logo, IMAGE_BOXES.coverLogo)],
     }),
     paragraph([label(cover.kindTitle, REPORT_COLORS.brand)], { spacingAfter: 160 }),
@@ -645,10 +643,21 @@ function coverBlocks(model: ReportModel, assets: ReportAssets): Block[] {
         run(cover.title, { bold: true, size: FONT_SIZES.coverTitle, color: REPORT_COLORS.ink }),
       ],
     }),
-    spacer(400),
+    ...(photo
+      ? [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 360 },
+            children: [image(photo, IMAGE_BOXES.coverPhoto)],
+          }),
+        ]
+      : [spacer(400)]),
     coverFacts(facts),
-    spacer(3600),
-    band,
+    // The cover has no footer: only the generation date, discreet, under the facts.
+    new Paragraph({
+      spacing: { before: 160, after: 0 },
+      children: [run(cover.generatedLine, { size: FONT_SIZES.small, tone: 'muted' })],
+    }),
   ]
 }
 

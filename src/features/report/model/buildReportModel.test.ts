@@ -4,6 +4,7 @@ import { DO_STEP_SEQUENCE, getDeadlineAlerts } from '@/features/do/doView'
 import { buildReportModel } from '@/features/report/model/buildReportModel'
 import {
   DEFAULT_REPORT_OPTIONS,
+  reportImageIds,
   type ReportSection,
   type ReportSectionKey,
 } from '@/features/report/model/reportModel'
@@ -143,9 +144,47 @@ describe('buildReportModel', () => {
           { type: 'bullets', items: ['cellule 3', 'chéneau nord'] },
           { type: 'paragraph', lines: ['À suivre.'] },
         ],
+        photos: [],
       },
-      { title: 'Sprinklage', blocks: [{ type: 'paragraph', lines: ['RAS'] }] },
+      { title: 'Sprinklage', blocks: [{ type: 'paragraph', lines: ['RAS'] }], photos: [] },
     ])
+  })
+
+  it('shows the photos linked to an area, even an area without text', () => {
+    const base = makeReportVisit()
+    const visit = makeReportVisit({
+      noteSections: base.noteSections.map((s) =>
+        s.id === 'n1'
+          ? { ...s, photoIds: ['ph-3', 'deleted', 'ph-1'] }
+          : s.id === 'n2'
+            ? { ...s, photoIds: ['ph-5'] }
+            : s,
+      ),
+    })
+    const model = buildReportModel(makeReportInput({ visit }))
+    const notes = section(model.sections, 'notes')
+    expect(notes.zones.map((z) => [z.title, z.photos.map((p) => p.numberLabel)])).toEqual([
+      ['Toiture', ['Photo n°3', 'Photo n°1']],
+      ['Quais', ['Photo n°5']],
+      ['Sprinklage', []],
+    ])
+    // The photo sheet names the area of each linked photo.
+    const sheet = section(model.sections, 'photos')
+    expect(sheet.photos.find((p) => p.photoId === 'ph-5')?.details).toBe('Travaux · Zone : Quais')
+    // Every image is prepared once, even when shown twice.
+    expect(reportImageIds(model).photoIds).toEqual(['ph-3', 'ph-1', 'ph-5', 'ph-2', 'ph-4'])
+  })
+
+  it('puts the chosen photo on the cover, if it still exists', () => {
+    const withCover = buildReportModel(
+      makeReportInput({ visit: makeReportVisit({ coverPhotoId: 'ph-4' }) }),
+    )
+    expect(withCover.cover.photoId).toBe('ph-4')
+    expect(reportImageIds(withCover).photoIds[0]).toBe('ph-4')
+    const deleted = buildReportModel(
+      makeReportInput({ visit: makeReportVisit({ coverPhotoId: 'gone' }) }),
+    )
+    expect(deleted.cover.photoId).toBeUndefined()
   })
 
   it('sorts attention points like the screen, overdue in red, done in grey', () => {

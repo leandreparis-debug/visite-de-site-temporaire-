@@ -60,10 +60,11 @@ async function setup(overrides: Partial<Visit> = {}, photoCount = 0) {
     )
   }
   const flush = vi.fn(() => Promise.resolve(true))
+  const update = vi.fn()
   const user = userEvent.setup()
-  render(<ReportTab visit={visit} flush={flush} />)
+  render(<ReportTab visit={visit} update={update} flush={flush} />)
   const contents = await screen.findByRole('region', { name: 'Contenu du rapport' })
-  return { visit, flush, user, contents }
+  return { visit, flush, update, user, contents }
 }
 
 const checkbox = (name: RegExp) => screen.getByRole('checkbox', { name })

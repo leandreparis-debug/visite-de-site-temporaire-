@@ -27,9 +27,27 @@ test('Word report of a complete visit in file://', async ({ page }) => {
   await createVisit(page, 'Visite annuelle Lyon', 'Entrepôt Lyon / Nord')
   await fillCompleteVisit(page)
 
-  // 2. The Report tab: previews, points to check, estimate.
+  // Photos 2 and 3 illustrate the "Toiture" area of the notes.
+  await tab(page, 'Notes').click()
+  await page.getByRole('button', { name: 'Lier des photos : Toiture' }).click()
+  const picker = page.getByRole('dialog', { name: 'Photos de la zone « Toiture »' })
+  await picker.getByRole('button', { name: /^Photo n°2( :|$)/ }).click()
+  await picker.getByRole('button', { name: /^Photo n°3( :|$)/ }).click()
+  await expect(picker).toContainText('2 photos sélectionnées')
+  await picker.getByRole('button', { name: 'Valider' }).click()
+  await expect(
+    page.getByRole('list', { name: 'Photos liées : Toiture' }).getByRole('listitem'),
+  ).toHaveCount(2)
+
+  // 2. The Report tab: previews, points to check, estimate, cover photo.
   await tab(page, 'Rapport').click()
   const contents = page.getByRole('region', { name: 'Contenu du rapport' })
+  await expect(contents).toContainText('2 sections, 2 photos liées')
+  await page.getByRole('button', { name: 'Choisir la photo de garde' }).click()
+  const coverPicker = page.getByRole('dialog', { name: 'Photo de la page de garde' })
+  await coverPicker.getByRole('button', { name: /^Photo n°1( :|$)/ }).click()
+  await coverPicker.getByRole('button', { name: 'Valider' }).click()
+  await expect(page.getByRole('img', { name: /^Photo de la page de garde/ })).toBeVisible()
   await expect(contents).toContainText('5 photos (1 sans légende)')
   await expect(contents).toContainText('1 plan, 3 repères')
   await expect(page.getByRole('link', { name: '1 photo sans légende' })).toBeVisible()
@@ -73,6 +91,10 @@ test('Word report of a complete visit in file://', async ({ page }) => {
     ((1_250_050 + 185_000 + 3_200_000 + 98_040) * 1.2) / 100,
   )
   expect(document).toContain(ttc)
+  // Photos under their area, named in the photo sheet; the cover photo.
+  expect(document).toContain('Zone : Toiture')
+  // 5 photos in the sheet + 2 under "Toiture" + 1 on the cover + 1 plan + the cover logo.
+  expect(document.match(/<w:drawing>/g)).toHaveLength(10)
   // Portrait everywhere, plans included.
   expect(document).not.toContain('w:orient="landscape"')
   const media = Object.values(zip.files).filter((f) => !f.dir && f.name.startsWith('word/media/'))
@@ -85,9 +107,9 @@ test('Word report of a complete visit in file://', async ({ page }) => {
   // The visit now shows its report date.
   await expect(page.getByText(/^Rapport généré le /).first()).toBeVisible()
 
-  // 4. "Allégée" and 2 per page: a lighter file.
+  // 4. "Allégée" and 4 per page: a lighter file.
   await page.getByRole('radiogroup', { name: 'Qualité des images' }).getByText('Allégée').click()
-  await page.getByRole('radiogroup', { name: 'Photos par page' }).getByText('2 par page').click()
+  await page.getByRole('radiogroup', { name: 'Photos par page' }).getByText('4 par page').click()
   await expect(estimate).not.toHaveText(standardEstimate ?? '')
   const light = await generate(page)
   console.log(`[perf] report light: ${light.bytes.length} bytes in ${light.ms} ms`)

@@ -161,6 +161,25 @@ describe('visitsRepo — deleteVisit', () => {
 })
 
 describe('visitsRepo — duplicateVisit', () => {
+  it('can keep the notes, with new ids and without their photos', async () => {
+    const source = await seedFullVisit()
+    const photo = await addPhoto(makePhotoInput(source.id))
+    await updateVisit(source.id, (v) => ({
+      ...v,
+      coverPhotoId: photo.id,
+      noteSections: v.noteSections.map((s) => ({ ...s, photoIds: [photo.id] })),
+    }))
+
+    const copy = await duplicateVisit(source.id, { keepNotes: true })
+
+    expect(copy.noteSections.map(({ id: _id, ...rest }) => rest)).toEqual([
+      { title: 'Toiture', content: 'Infiltrations\nzone B', order: 0 },
+    ])
+    expect(copy.noteSections[0]?.id).not.toBe('note-1')
+    expect(copy.coverPhotoId).toBeUndefined()
+    expect(await listPhotos(copy.id)).toEqual([])
+  })
+
   it('keeps follow-up data, drops notes / photos / pins, copies plans with new ids', async () => {
     const source = await seedFullVisit()
     await addPhoto(makePhotoInput(source.id))

@@ -4,6 +4,8 @@ import {
   insertTemplate,
   moveNoteSection,
   removeNoteSection,
+  sectionPhotoIds,
+  setNoteSectionPhotos,
   sortedSections,
   updateNoteSection,
 } from '@/features/notes/noteSectionOps'
@@ -95,5 +97,21 @@ describe('noteSectionOps', () => {
     )
     expect(again.added).toBe(0)
     expect(again.visit).toBe(visit)
+  })
+})
+
+describe('setNoteSectionPhotos', () => {
+  it('links photos to a section in the given order, without duplicates', () => {
+    const visit = deepFreeze(threeSections())
+    const [first] = sortedSections(visit)
+    if (!first) throw new Error('no section')
+    const linked = setNoteSectionPhotos(visit, first.id, ['b', 'a', 'b'])
+    expect(sectionPhotoIds(sortedSections(linked)[0]!)).toEqual(['b', 'a'])
+    // Same list: same object (no pointless save).
+    expect(setNoteSectionPhotos(linked, first.id, ['b', 'a'])).toBe(linked)
+    // Empty list: the field is removed.
+    const cleared = setNoteSectionPhotos(linked, first.id, [])
+    expect(sortedSections(cleared)[0]).not.toHaveProperty('photoIds')
+    expect(setNoteSectionPhotos(visit, 'unknown', ['a'])).toBe(visit)
   })
 })

@@ -102,10 +102,19 @@ test('general info, participants, notes and attention points survive reload and 
   // 5. Duplicate and check the copy.
   await page.getByRole('button', { name: 'Actions pour « Visite annuelle Lyon »' }).click()
   await page.getByRole('menuitem', { name: 'Dupliquer' }).click()
-  await page
-    .getByRole('dialog', { name: 'Dupliquer la visite' })
-    .getByRole('button', { name: 'Dupliquer' })
-    .click()
+  const duplicate = page.getByRole('dialog', { name: 'Dupliquer la visite' })
+  // Notes are kept by default; unchecking moves them to "Non repris".
+  const keepNotes = duplicate.getByRole('checkbox', { name: /^Garder les notes par zone/ })
+  await expect(keepNotes).toBeChecked()
+  await keepNotes.uncheck()
+  await expect(duplicate.getByRole('region', { name: 'Non repris', exact: true })).toContainText(
+    'Notes par zone',
+  )
+  await keepNotes.check()
+  await expect(duplicate.getByRole('region', { name: 'Repris', exact: true })).toContainText(
+    'Notes par zone (sans les photos)',
+  )
+  await duplicate.getByRole('button', { name: 'Dupliquer' }).click()
   await expect(
     page.getByRole('heading', { level: 2, name: 'Copie — Visite annuelle Lyon' }),
   ).toBeVisible()
@@ -115,10 +124,10 @@ test('general info, participants, notes and attention points survive reload and 
     await expect(page.getByRole('checkbox', { name: `Présent : ${name}` })).not.toBeChecked()
   }
   await page.getByRole('tab', { name: 'Notes' }).click()
-  await expect(page.getByRole('combobox', { name: /^Titre de la section/ })).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Insérer la trame visite technique' }),
-  ).toBeVisible()
+  await expect(page.getByRole('combobox', { name: /^Titre de la section/ })).toHaveCount(14)
+  await expect(page.getByRole('textbox', { name: 'Notes : Toiture et étanchéité' })).toHaveValue(
+    'Infiltrations au droit du quai 3\n- chéneau nord bouché\n- 2 lanterneaux fissurés',
+  )
   const points = page.getByRole('textbox', { name: 'Texte du point d’attention' })
   await expect(points).toHaveCount(1)
   await expect(points).toHaveValue('Curer le chéneau nord')

@@ -107,6 +107,12 @@ export const noteSectionSchema = z.object({
   /** Plain multi-line text. */
   content: z.string().check(z.maxLength(LONG_TEXT_MAX)),
   order: orderSchema,
+  /**
+   * Photos illustrating this area, in display order (added later: absent
+   * means none). Ids of deleted photos are removed with the photo, and
+   * ignored anyway wherever they are read.
+   */
+  photoIds: z.optional(z.array(idSchema)),
 })
 export type NoteSection = z.infer<typeof noteSectionSchema>
 
@@ -205,6 +211,8 @@ export const visitSchema = z
     /** Purpose of the visit or meeting ("objet"). */
     purpose: optionalText(1000),
     site: siteSchema,
+    /** Photo shown on the report cover (usually the building); absent = none. */
+    coverPhotoId: z.optional(idSchema),
     participants: z.array(participantSchema),
     noteSections: z.array(noteSectionSchema),
     attentionPoints: z.array(attentionPointSchema),

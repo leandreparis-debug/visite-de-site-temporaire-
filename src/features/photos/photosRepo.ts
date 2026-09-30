@@ -12,6 +12,7 @@ import { NotFoundError, ValidationError, withStorageErrors } from '@/lib/errors'
 import { createId } from '@/lib/id'
 import { parseOrThrow } from '@/lib/validation'
 import { photoSchema, type Photo } from '@/types/media'
+import { withoutPhotoRefs } from './photoRefsOps'
 
 /** Data required to add a photo; `order` defaults to the end of the list. */
 export type NewPhotoInput = Omit<Photo, 'id' | 'createdAt' | 'order'> & { order?: number }
@@ -76,8 +77,8 @@ export function updatePhotoMeta(id: string, patch: PhotoMetaPatch): Promise<Phot
 }
 
 /**
- * Deletes a photo and, in the same transaction, the visit's pins that
- * reference it. Other pin numbers are left unchanged.
+ * Deletes a photo and, in the same transaction, the visit's references to it
+ * (pins, note sections, cover). Other pin numbers are left unchanged.
  * @throws {NotFoundError} if the photo does not exist.
  */
 export function deletePhoto(id: string): Promise<void> {
@@ -88,7 +89,7 @@ export function deletePhoto(id: string): Promise<void> {
         if (!photo) throw new NotFoundError('photo', id)
         await db.photos.delete(id)
         const visit = await touchVisit(photo.visitId)
-        await db.visits.put({ ...visit, pins: visit.pins.filter((pin) => pin.photoId !== id) })
+        await db.visits.put(withoutPhotoRefs(visit, new Set([id])))
       })
       .then(notifyStorageChange),
   )
@@ -135,8 +136,8 @@ export function setPhotosCategory(
 }
 
 /**
- * Deletes several photos and, in the same transaction, the pins that reference
- * them. Pin numbers of the other pins never change (and are never reassigned).
+ * Deletes several photos and, in the same transaction, the visit's references
+ * to them (pins, note sections, cover). Pin numbers of the other pins never change (and are never reassigned).
  */
 export function deletePhotos(ids: readonly string[]): Promise<void> {
   const idSet = new Set(ids)
@@ -147,10 +148,7 @@ export function deletePhotos(ids: readonly string[]): Promise<void> {
         await db.photos.bulkDelete(photos.map((p) => p.id))
         for (const visitId of new Set(photos.map((p) => p.visitId))) {
           const visit = await touchVisit(visitId)
-          await db.visits.put({
-            ...visit,
-            pins: visit.pins.filter((pin) => !idSet.has(pin.photoId)),
-          })
+          await db.visits.put(withoutPhotoRefs(visit, idSet))
         }
       })
       .then(notifyStorageChange),

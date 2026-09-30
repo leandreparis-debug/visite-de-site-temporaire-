@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, Loader2, Trash2, X } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { toast } from 'sonner'
 import { navigate } from '@/app/router'
 import {
@@ -53,7 +53,7 @@ const KEPT_ON_DUPLICATE = [
   'Points d’attention non terminés',
   'Plans',
 ]
-const DROPPED_ON_DUPLICATE = ['Notes', 'Photos', 'Repères sur les plans']
+const DROPPED_ON_DUPLICATE = ['Photos', 'Repères sur les plans']
 
 /** Confirmation dialogs for "Dupliquer" and "Supprimer". */
 export function VisitActionDialogs({
@@ -87,13 +87,15 @@ interface DialogProps {
 
 function DuplicateVisitDialog({ visit, onClose, beforeAction }: DialogProps) {
   const [busy, setBusy] = useState(false)
+  const [keepNotes, setKeepNotes] = useState(true)
+  const keepNotesId = useId()
 
   const confirm = async () => {
     if (!visit) return
     setBusy(true)
     try {
       if (beforeAction && !(await beforeAction('duplicate'))) return
-      const copy = await duplicateVisit(visit.id)
+      const copy = await duplicateVisit(visit.id, { keepNotes })
       onClose()
       toast.success('Visite dupliquée')
       navigate({ name: 'visit', visitId: copy.id, tab: 'general' })
@@ -131,6 +133,12 @@ function DuplicateVisitDialog({ visit, onClose, beforeAction }: DialogProps) {
                   {item}
                 </li>
               ))}
+              {keepNotes && (
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+                  Notes par zone (sans les photos)
+                </li>
+              )}
             </ul>
           </section>
           <section aria-labelledby="duplicate-dropped">
@@ -138,6 +146,12 @@ function DuplicateVisitDialog({ visit, onClose, beforeAction }: DialogProps) {
               Non repris
             </h3>
             <ul className="space-y-1.5 text-muted-foreground">
+              {!keepNotes && (
+                <li className="flex items-start gap-2">
+                  <X className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  Notes par zone
+                </li>
+              )}
               {DROPPED_ON_DUPLICATE.map((item) => (
                 <li key={item} className="flex items-start gap-2">
                   <X className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -147,6 +161,22 @@ function DuplicateVisitDialog({ visit, onClose, beforeAction }: DialogProps) {
             </ul>
           </section>
         </div>
+        <label
+          htmlFor={keepNotesId}
+          className="flex cursor-pointer items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm"
+        >
+          <input
+            id={keepNotesId}
+            type="checkbox"
+            className="size-4 accent-brand"
+            checked={keepNotes}
+            disabled={busy}
+            onChange={(event) => {
+              setKeepNotes(event.target.checked)
+            }}
+          />
+          Garder les notes par zone (les photos ne sont jamais reprises)
+        </label>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>
             Annuler

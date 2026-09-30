@@ -72,7 +72,8 @@ test('full journey: visit, report, follow-up visit, second report, deletion', as
   expect(second.xml).toContain('Copie — Visite annuelle Lyon')
   expect(second.xml).toContain('En cours : Désignation de l’expert — 3 / 10 étapes')
   expect(second.xml).toMatch(/Position sur la garantie attendue avant le [\d/]+ — étape terminée/)
-  // Photos and pins are not copied: no photo sheet, no plan pins.
+  // Notes are kept (default choice), photos and pins are not: no photo sheet.
+  expect(second.xml).toContain('Observations par zone')
   expect(second.xml).not.toContain('Planche photos')
 
   // 7. Delete the original: its report was generated, no warning.

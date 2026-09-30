@@ -10,7 +10,7 @@ import { computeTargetSize } from '@/features/photos/processing/imageSize'
 import { renderAnnotatedPlan } from '@/features/plan/renderAnnotatedPlan'
 import type { Photo, Pin, Plan } from '@/types/media'
 import { REPORT_IMAGE_SETTINGS } from '../model/estimateReportSize'
-import type { ReportModel, ReportQuality } from '../model/reportModel'
+import { reportImageIds, type ReportModel, type ReportQuality } from '../model/reportModel'
 import type { ReportAssets, ReportImage } from './renderReportDocx'
 
 export type ReportProgress =
@@ -49,17 +49,6 @@ async function bytesOf(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer())
 }
 
-/** Ids of the plans and photos actually shown by the model. */
-export function usedImageIds(model: ReportModel): { planIds: string[]; photoIds: string[] } {
-  const planIds: string[] = []
-  const photoIds: string[] = []
-  for (const section of model.sections) {
-    if (section.key === 'plans') planIds.push(...section.plans.map((p) => p.planId))
-    if (section.key === 'photos') photoIds.push(...section.photos.map((p) => p.photoId))
-  }
-  return { planIds, photoIds }
-}
-
 /**
  * Builds the report images, sequentially, reporting "plans i / n" then
  * "photos i / n". Only the plans and photos present in the model are
@@ -71,7 +60,7 @@ export async function prepareReportAssets(
 ): Promise<ReportAssets> {
   const { codec, annotatePlan, yieldToUi } = dependencies
   const settings = REPORT_IMAGE_SETTINGS[input.quality]
-  const { planIds, photoIds } = usedImageIds(input.model)
+  const { planIds, photoIds } = reportImageIds(input.model)
   const plansById = new Map(input.plans.map((p) => [p.id, p]))
   const photosById = new Map(input.photos.map((p) => [p.id, p]))
 

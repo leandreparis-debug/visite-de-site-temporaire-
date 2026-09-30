@@ -240,32 +240,56 @@ function attentionTable(visit: Visit, todayIso: string): ReportTable {
   }
 }
 
+/**
+ * Every photo of the visit as shown in the report, by id: number (position
+ * in the photo order), pin, caption, category, areas it illustrates, date.
+ */
+function reportPhotosById(
+  visit: Visit,
+  photos: readonly ReportPhotoInput[],
+): Map<string, ReportPhoto> {
+  const pins = pinNumbersByPhoto(visit)
+  const zonesByPhoto = new Map<string, string[]>()
+  for (const section of [...visit.noteSections].sort((a, b) => a.order - b.order)) {
+    for (const photoId of section.photoIds ?? []) {
+      zonesByPhoto.set(photoId, [...(zonesByPhoto.get(photoId) ?? []), section.title])
+    }
+  }
+  return new Map(
+    byOrder(photos).map((photo, index): [string, ReportPhoto] => {
+      const pin = pins.get(photo.id)
+      const caption = photo.caption.trim()
+      const zones = zonesByPhoto.get(photo.id)
+      return [
+        photo.id,
+        {
+          photoId: photo.id,
+          numberLabel: `Photo n°${index + 1}`,
+          ...(pin !== undefined && { pinLabel: `Repère n°${pin}` }),
+          caption: caption || NO_CAPTION,
+          captionMissing: !caption,
+          details: [
+            PHOTO_CATEGORY_LABELS[photo.category],
+            zones && `Zone : ${zones.join(', ')}`,
+            photo.takenAt && formatTakenAt(photo.takenAt),
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        },
+      ]
+    }),
+  )
+}
+
 function buildPhotos(
   visit: Visit,
   photos: readonly ReportPhotoInput[],
   onlyPinned: boolean,
 ): ReportPhoto[] {
-  const pins = pinNumbersByPhoto(visit)
-  return byOrder(photos)
-    .map((photo, index) => ({ photo, number: index + 1 }))
-    .filter(({ photo }) => !onlyPinned || pins.has(photo.id))
-    .map(({ photo, number }): ReportPhoto => {
-      const pin = pins.get(photo.id)
-      const caption = photo.caption.trim()
-      return {
-        photoId: photo.id,
-        numberLabel: `Photo n°${number}`,
-        ...(pin !== undefined && { pinLabel: `Repère n°${pin}` }),
-        caption: caption || NO_CAPTION,
-        captionMissing: !caption,
-        details: [
-          PHOTO_CATEGORY_LABELS[photo.category],
-          photo.takenAt && formatTakenAt(photo.takenAt),
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      }
-    })
+  const pinned = new Set(visit.pins.map((pin) => pin.photoId))
+  return [...reportPhotosById(visit, photos).values()].filter(
+    (photo) => !onlyPinned || pinned.has(photo.photoId),
+  )
 }
 
 function insurancesTable(visit: Visit, todayIso: string): ReportTable | null {
@@ -442,7 +466,7 @@ function costsTable(visit: Visit): ReportTable | null {
   ])
   return {
     headers: ['Libellé', 'Fournisseur', 'Catégorie', 'Statut', 'Montant HT', 'TVA %', 'TVA', 'TTC'],
-    widths: [2.7, 2.6, 2.0, 1.6, 2.4, 1.3, 1.9, 2.4],
+    widths: [2.3, 2.5, 2.1, 1.6, 2.4, 1.4, 2.1, 2.4],
     rightAligned: [4, 5, 6, 7],
     rows,
   }
@@ -472,10 +496,16 @@ function buildSection(
       }
     }
     case 'notes': {
+      const photos = reportPhotosById(visit, input.photos)
       const zones = [...visit.noteSections]
         .sort((a, b) => a.order - b.order)
-        .map((section) => ({ title: section.title, blocks: parseNoteContent(section.content) }))
-        .filter((zone) => zone.blocks.length > 0)
+        .map((section) => ({
+          title: section.title,
+          blocks: parseNoteContent(section.content),
+          // Deleted photos are ignored; order of the links kept.
+          photos: (section.photoIds ?? []).flatMap((id) => photos.get(id) ?? []),
+        }))
+        .filter((zone) => zone.blocks.length > 0 || zone.photos.length > 0)
       return zones.length ? { key, title, zones } : null
     }
     case 'attention':
@@ -592,6 +622,10 @@ export function buildReportModel(input: BuildReportInput): ReportModel {
         formatDateFr(visit.date) +
         (visit.startTime ? ` à ${visit.startTime.replace(':', 'h')}` : ''),
       ...(visit.author && { author: visit.author }),
+      ...(visit.coverPhotoId !== undefined &&
+        input.photos.some((p) => p.id === visit.coverPhotoId) && {
+          photoId: visit.coverPhotoId,
+        }),
       generatedLine: generatedLine(input.generatedAt),
     },
     header: { siteName: site.name, date: formatDateShortFr(visit.date) },

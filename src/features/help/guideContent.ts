@@ -47,7 +47,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         type: 'list',
         items: [
           '**Informations générales** : rédacteur, objet, site, participants (cochez « Présent » ou non). Tapez le nom puis `Entrée` pour ajouter le participant suivant.',
-          '**Notes** : une section par zone (toiture, quais, sprinklage…). `Insérer la trame visite technique` crée les sections usuelles. Une ligne commençant par « - » devient une puce dans le rapport.',
+          '**Notes** : une section par zone (toiture, quais, sprinklage…). `Insérer la trame visite technique` crée les sections usuelles. Une ligne commençant par « - » devient une puce dans le rapport. `Lier des photos` associe des photos à la zone : elles apparaissent sous ses observations dans le rapport.',
           '**Points d’attention** : saisissez l’action, la priorité, le responsable et l’échéance, puis `Entrée`. Les points en retard sont signalés en rouge.',
           '**Photos** : glissez les photos sur l’onglet ou `Ajouter des photos`. Ajoutez une légende et une catégorie (désordre, sécurité…).',
           '**Photos d’iPhone (HEIC)** : non prises en charge. Sur l’iPhone : **Réglages › Appareil photo › Formats › « Le plus compatible »**, ou partagez la photo en JPEG.',
@@ -81,9 +81,13 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         type: 'table',
         headers: ['Repris dans la copie', 'Non repris'],
         rows: [
-          ['Site et participants (marqués absents)', 'Notes par zone'],
-          ['Points d’attention non terminés', 'Photos et repères'],
-          ['Sinistres DO, contrats d’assurance', 'Points d’attention terminés'],
+          ['Site et participants (marqués absents)', 'Photos et repères'],
+          [
+            'Notes par zone (case « Garder les notes », cochée par défaut)',
+            'Points d’attention terminés',
+          ],
+          ['Points d’attention non terminés', 'Photo de la page de garde'],
+          ['Sinistres DO, contrats d’assurance', ''],
           ['Projets et coûts, plans', ''],
         ],
       },
@@ -118,7 +122,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         type: 'list',
         items: [
           'Onglet **Rapport** : cochez les rubriques voulues (les rubriques vides sont omises).',
-          'Choisissez **6 photos par page** (ou 2 en grand format) et la qualité des images : **Allégée** pour un envoi par mail.',
+          '**Page de garde** : `Choisir la photo de garde` place une photo du site (l’entrepôt, la façade…) sous le titre du rapport.',
+          'Choisissez **6, 4 ou 2 photos par page** et la qualité des images : **Allégée** pour un envoi par mail.',
           'Les **points à vérifier** (photos sans légende, rédacteur manquant…) ne bloquent pas : cliquez dessus pour les corriger.',
           '`Générer le rapport Word` : le fichier « CR - site - date.docx » est téléchargé. Ouvrez-le dans Word pour le relire ou le compléter.',
           'Le rapport est **la seule copie durable** de la visite : enregistrez-le sur le réseau ou dans le dossier du site.',

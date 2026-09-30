@@ -102,12 +102,37 @@ describe('renderReportDocx', () => {
     expect(await read('word/document.xml')).toContain('<w:numPr>')
   })
 
-  it('puts 2 or 6 photos per page, never more', async () => {
+  it('puts 2, 4 or 6 photos per page, never more', async () => {
     const six = await generate()
+    const four = await generate(makeReportInput({ options: { photosPerPage: 4 } }))
     const two = await generate(makeReportInput({ options: { photosPerPage: 2 } }))
     const pageBreaks = async (read: (p: string) => Promise<string>) =>
       ((await read('word/document.xml')).match(/<w:pageBreakBefore\/>/g) ?? []).length
-    // 5 photos: 1 page at 6 per page, 3 pages at 2 per page (2 extra breaks).
+    // 5 photos: 1 page at 6 per page, 2 pages at 4, 3 pages at 2.
+    expect((await pageBreaks(four.read)) - (await pageBreaks(six.read))).toBe(1)
     expect((await pageBreaks(two.read)) - (await pageBreaks(six.read))).toBe(2)
+  })
+
+  it('shows the site photo on the cover, which has no footer', async () => {
+    const plain = await generate()
+    const input = makeReportInput()
+    const withCover = await generate({
+      ...input,
+      visit: { ...input.visit, coverPhotoId: 'ph-3' },
+    })
+    const drawings = (xml: string) => (xml.match(/<w:drawing>/g) ?? []).length
+    const [before, after] = await Promise.all([
+      plain.read('word/document.xml'),
+      withCover.read('word/document.xml'),
+    ])
+    // One more image in the document, but the same photo is stored once.
+    expect(drawings(after) - drawings(before)).toBe(1)
+    const media = (zip: JSZip) =>
+      Object.values(zip.files).filter((f) => !f.dir && f.name.startsWith('word/media/')).length
+    expect(media(withCover.zip)).toBe(media(plain.zip))
+    // The cover is the first section: its properties (w:sectPr) carry no footer.
+    const firstSection = after.slice(0, after.indexOf('</w:sectPr>'))
+    expect(firstSection).not.toContain('w:footerReference')
+    expect(firstSection).toContain('Généré le 28 septembre 2026 à 14h05')
   })
 })

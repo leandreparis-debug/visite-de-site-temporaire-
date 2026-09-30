@@ -44,6 +44,12 @@ export function createEmptyVisit(input: NewVisitInput, now: string = nowIso()): 
   }
 }
 
+/** Choices offered when duplicating a visit. */
+export interface DuplicateOptions {
+  /** Copy the notes by area (text only, without their photos). */
+  keepNotes?: boolean
+}
+
 const TITLE_MAX = 200
 const COPY_PREFIX = 'Copie — '
 
@@ -51,13 +57,20 @@ const COPY_PREFIX = 'Copie — '
  * Builds the data of a follow-up visit from an existing one ("reprendre le suivi").
  *
  * Kept: site, participants (reset to absent), DO claims, insurances, projects,
- * costs, attention points not `done`. Dropped: note sections, pins (and photos,
- * which live in another table). Every sub-object gets a new id and
- * `cost.projectId` is remapped to the new project ids.
+ * costs, attention points not `done`, and the note sections when
+ * `options.keepNotes` is set (text only: their links to photos are dropped).
+ * Dropped: pins, cover photo (and photos, which live in another table). Every
+ * sub-object gets a new id and `cost.projectId` is remapped to the new
+ * project ids.
  *
  * Plans are copied separately by `duplicateVisit` (they live in their own table).
  */
-export function duplicateVisitData(source: Visit, today: string, now: string = nowIso()): Visit {
+export function duplicateVisitData(
+  source: Visit,
+  today: string,
+  now: string = nowIso(),
+  options: DuplicateOptions = {},
+): Visit {
   const projectIdMap = new Map<string, string>()
   const projects = source.projects.map((project) => {
     const id = createId()
@@ -76,7 +89,12 @@ export function duplicateVisitData(source: Visit, today: string, now: string = n
     ...(source.startTime !== undefined && { startTime: source.startTime }),
     site: { ...source.site },
     participants: source.participants.map((p) => ({ ...p, id: createId(), present: false })),
-    noteSections: [],
+    noteSections: options.keepNotes
+      ? source.noteSections.map(({ photoIds: _photos, ...section }) => ({
+          ...section,
+          id: createId(),
+        }))
+      : [],
     attentionPoints: source.attentionPoints
       .filter((point) => point.status !== 'done')
       .map((point) => ({ ...point, id: createId() })),

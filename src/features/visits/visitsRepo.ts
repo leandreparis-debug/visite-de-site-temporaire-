@@ -10,7 +10,12 @@ import { createId } from '@/lib/id'
 import { parseOrThrow } from '@/lib/validation'
 import { notifyStorageChange } from '@/lib/db/storage'
 import { normalizeVisit, visitSchema, type Visit, type VisitSummary } from '@/types/visit'
-import { createEmptyVisit, duplicateVisitData, type NewVisitInput } from './visitFactory'
+import {
+  createEmptyVisit,
+  duplicateVisitData,
+  type DuplicateOptions,
+  type NewVisitInput,
+} from './visitFactory'
 
 /**
  * Reads and normalizes a visit (fills fields missing from older rows).
@@ -157,19 +162,19 @@ export function getVisitMediaCounts(
 
 /**
  * Creates a follow-up visit dated today, titled "Copie — {title}".
- * Keeps the follow-up data and copies the plans (blobs included);
- * drops notes, photos and pins. See `duplicateVisitData` for details.
+ * Keeps the follow-up data and copies the plans (blobs included), and the
+ * notes when `options.keepNotes` is set; drops photos and pins. See `duplicateVisitData` for details.
  *
  * @returns the new visit.
  * @throws {NotFoundError} if the source visit does not exist.
  */
-export function duplicateVisit(id: string): Promise<Visit> {
+export function duplicateVisit(id: string, options: DuplicateOptions = {}): Promise<Visit> {
   return withStorageErrors(() =>
     db.transaction('rw', db.visits, db.plans, async () => {
       const source = await readVisit(id)
       if (!source) throw new NotFoundError('visit', id)
       const now = nowIso()
-      const copy = parseOrThrow(visitSchema, duplicateVisitData(source, todayIso(), now))
+      const copy = parseOrThrow(visitSchema, duplicateVisitData(source, todayIso(), now, options))
       const plans = await db.plans.where('visitId').equals(id).toArray()
       await db.visits.add(copy)
       await db.plans.bulkAdd(

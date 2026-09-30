@@ -42,7 +42,13 @@ export function getReportContents(
     : photos
   const withoutCaption = shownPhotos.filter((p) => !p.caption.trim()).length
   const presentCount = visit.participants.filter((p) => p.present).length
-  const filledNotes = visit.noteSections.filter((s) => s.content.trim()).length
+  const photoIds = new Set(photos.map((p) => p.id))
+  const filledNotes = visit.noteSections.filter(
+    (s) => s.content.trim() || s.photoIds?.some((id) => photoIds.has(id)),
+  ).length
+  const linkedPhotos = new Set(
+    visit.noteSections.flatMap((s) => s.photoIds ?? []).filter((id) => photoIds.has(id)),
+  ).size
   const previews: Record<ReportSectionKey, string> = {
     summary: 'Points d’attention, sinistres, contrats, projets et coûts',
     general: [
@@ -52,7 +58,9 @@ export function getReportContents(
     ]
       .filter(Boolean)
       .join(' · '),
-    notes: plural(filledNotes, 'section', 'sections'),
+    notes:
+      plural(filledNotes, 'section', 'sections') +
+      (linkedPhotos ? `, ${plural(linkedPhotos, 'photo liée', 'photos liées')}` : ''),
     attention: visit.attentionPoints.length
       ? `${plural(visit.attentionPoints.length, 'point', 'points')} (${formatAttentionSummary(summarizeAttentionPoints(visit.attentionPoints, todayIso))})`
       : '',
@@ -112,7 +120,7 @@ export function getReportChecks(
     checks.push({ id: 'author', text: 'Rédacteur non renseigné', tab: 'general' })
   }
   for (const section of visit.noteSections) {
-    if (section.content.trim()) continue
+    if (section.content.trim() || section.photoIds?.length) continue
     checks.push({
       id: `note-${section.id}`,
       text: `Section de notes « ${section.title} » vide (omise du rapport)`,

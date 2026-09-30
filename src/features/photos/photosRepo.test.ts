@@ -101,6 +101,25 @@ describe('photosRepo', () => {
     expect((await getVisit(visit.id)).pins).toEqual([pin('p2', kept.id, 2)])
     // Another visit is not touched.
     expect((await getVisit(other.id)).pins).toHaveLength(1)
+  })
+
+  it('deletePhoto unlinks it from the note sections and the cover', async () => {
+    const visit = await newVisit()
+    const kept = await addPhoto(makePhotoInput(visit.id))
+    const removed = await addPhoto(makePhotoInput(visit.id))
+    await updateVisit(visit.id, (v) => ({
+      ...v,
+      coverPhotoId: removed.id,
+      noteSections: [
+        { id: 's1', title: 'Toiture', content: '', order: 0, photoIds: [removed.id, kept.id] },
+      ],
+    }))
+
+    await deletePhoto(removed.id)
+
+    const after = await getVisit(visit.id)
+    expect(after.coverPhotoId).toBeUndefined()
+    expect(after.noteSections[0]?.photoIds).toEqual([kept.id])
     await expect(deletePhoto(removed.id)).rejects.toBeInstanceOf(NotFoundError)
   })
 })

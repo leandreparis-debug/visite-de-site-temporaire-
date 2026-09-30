@@ -122,3 +122,25 @@ export function insertTemplate(
   if (added.length === 0) return { visit, added: 0 }
   return { visit: withSections(visit, [...sortedSections(visit), ...added]), added: added.length }
 }
+
+/** Photos linked to a section, in display order (none when never set). */
+export function sectionPhotoIds(section: NoteSection): readonly string[] {
+  return section.photoIds ?? []
+}
+
+/**
+ * Sets the photos linked to a section (order kept, duplicates removed).
+ * An empty list removes the field.
+ */
+export function setNoteSectionPhotos(visit: Visit, id: string, photoIds: readonly string[]): Visit {
+  const index = visit.noteSections.findIndex((s) => s.id === id)
+  const section = visit.noteSections[index]
+  if (!section) return visit
+  const unique = [...new Set(photoIds)]
+  const current = sectionPhotoIds(section)
+  if (unique.length === current.length && unique.every((photoId, i) => photoId === current[i]))
+    return visit
+  const { photoIds: _previous, ...rest } = section
+  const next = unique.length ? { ...rest, photoIds: unique } : rest
+  return { ...visit, noteSections: visit.noteSections.with(index, next) }
+}

@@ -4,9 +4,17 @@ Toutes les évolutions notables de l'outil. Format inspiré de [Keep a Changelog
 
 ## [Non publié]
 
+### Ajouté
+
+- **Photos liées aux observations** : « Lier des photos » sur chaque zone des notes ; les photos apparaissent sous la zone dans le rapport et la planche photos indique la zone.
+- **Photo de page de garde** : une photo du site (l'entrepôt) choisie dans l'onglet Rapport, affichée sous le titre.
+- **4 photos par page** pour la planche photos (en plus de 6 et 2).
+- **Duplication** : case « Garder les notes par zone » (cochée par défaut) ; les photos ne sont jamais reprises.
+
 ### Modifié
 
-- **Rapport Word** : toutes les pages en A4 portrait (les plans ne sont plus en paysage) ; nouvelle mise en page aux couleurs de Carrefour Property (prune du logo) : page de garde épurée avec bandeau, synthèse en cartes, tableaux à en-tête coloré et filets horizontaux, encadrés à liseré, en-tête avec logo, pied de page « Page X / Y ».
+- **Page de garde** sans pied de page (le bandeau a été retiré ; la date de génération reste, discrète, sous les informations).
+- **Rapport Word** : toutes les pages en A4 portrait (les plans ne sont plus en paysage) ; nouvelle mise en page aux couleurs de Carrefour Property (prune du logo) : page de garde épurée, synthèse en cartes, tableaux à en-tête coloré et filets horizontaux, encadrés à liseré, en-tête avec logo, pied de page « Page X / Y ».
 - **Plans annotés** : repères numérotés et légende nettement plus grands (≈ 4 % du grand côté du plan), lisibles une fois le plan imprimé en pleine largeur.
 - **Logo officiel** Carrefour Property (remplace le logo provisoire) dans l'application et le rapport ; couleur principale de l'interface alignée sur le logo.
 

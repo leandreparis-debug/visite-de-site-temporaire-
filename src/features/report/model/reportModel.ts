@@ -31,7 +31,7 @@ export const REPORT_SECTION_TITLES: Record<ReportSectionKey, string> = {
 }
 
 export type ReportQuality = 'standard' | 'light'
-export type PhotosPerPage = 2 | 6
+export type PhotosPerPage = 2 | 4 | 6
 
 export interface ReportOptions {
   /** Sections to include (an empty section is omitted anyway). */
@@ -104,10 +104,17 @@ export interface GeneralSection {
   absent: ReportTable | null
 }
 
+export interface ReportZone {
+  title: string
+  blocks: NoteBlock[]
+  /** Photos linked to the area, shown under its text (2 per row). */
+  photos: ReportPhoto[]
+}
+
 export interface NotesSection {
   key: 'notes'
   title: string
-  zones: { title: string; blocks: NoteBlock[] }[]
+  zones: ReportZone[]
 }
 
 export interface AttentionSection {
@@ -140,7 +147,7 @@ export interface ReportPhoto {
   /** Caption, or "Sans légende" (muted). */
   caption: string
   captionMissing: boolean
-  /** "Désordre · 15/09/2026 à 10h42". */
+  /** "Désordre · Zone : Toiture · 15/09/2026 à 10h42". */
   details: string
 }
 
@@ -212,6 +219,8 @@ export interface ReportModel {
     /** "28 septembre 2026 à 9h30". */
     dateLine: string
     author?: string
+    /** Photo of the site shown on the cover (usually the building). */
+    photoId?: string
     /** "Généré le 28 septembre 2026 à 14h05". */
     generatedLine: string
   }
@@ -220,4 +229,21 @@ export interface ReportModel {
   footer: { text: string }
   /** Sections present, in order, titles numbered ("1. Synthèse"…). */
   sections: ReportSection[]
+}
+
+/**
+ * Ids of the plans and photos a model shows (cover, notes, plans, photo
+ * sheet), each once, in document order: the images to prepare.
+ */
+export function reportImageIds(model: ReportModel): { planIds: string[]; photoIds: string[] } {
+  const planIds = new Set<string>()
+  const photoIds = new Set<string>()
+  if (model.cover.photoId !== undefined) photoIds.add(model.cover.photoId)
+  for (const section of model.sections) {
+    if (section.key === 'plans') for (const plan of section.plans) planIds.add(plan.planId)
+    if (section.key === 'notes')
+      for (const zone of section.zones) for (const photo of zone.photos) photoIds.add(photo.photoId)
+    if (section.key === 'photos') for (const photo of section.photos) photoIds.add(photo.photoId)
+  }
+  return { planIds: [...planIds], photoIds: [...photoIds] }
 }

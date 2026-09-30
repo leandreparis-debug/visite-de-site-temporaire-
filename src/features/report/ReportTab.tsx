@@ -4,18 +4,23 @@ import { Link } from '@/app/Link'
 import { SectionCard } from '@/components/form/DraftFields'
 import { SegmentedControl } from '@/components/form/SegmentedControl'
 import { Button } from '@/components/ui/button'
+import { setCoverPhoto } from '@/features/photos/photoRefsOps'
 import { usePhotos } from '@/features/photos/usePhotos'
+import { CoverPhotoCard } from './CoverPhotoCard'
 import { usePlans } from '@/features/plan/usePlans'
+import type { VisitDraft } from '@/features/visits/useVisitDraft'
 import type { Visit } from '@/types/visit'
 import { toUserMessage } from '@/lib/errors'
 import { useToday } from '@/lib/useToday'
 import { cn } from '@/lib/utils'
+import { buildReportModel } from './model/buildReportModel'
 import { estimateReportSize, formatFileSize } from './model/estimateReportSize'
 import { getReportChecks, getReportContents } from './model/reportContents'
 import {
   DEFAULT_REPORT_OPTIONS,
   REPORT_SECTION_KEYS,
   REPORT_SECTION_TITLES,
+  reportImageIds,
   type PhotosPerPage,
   type ReportOptions,
   type ReportQuality,
@@ -25,8 +30,10 @@ import { formatReportProgress, useReportGeneration } from './useReportGeneration
 
 const PER_PAGE_OPTIONS = [
   { value: '6', label: '6 par page' },
+  { value: '4', label: '4 par page' },
   { value: '2', label: '2 par page' },
 ] as const
+type PerPageValue = (typeof PER_PAGE_OPTIONS)[number]['value']
 const QUALITY_OPTIONS = [
   { value: 'standard', label: 'Standard' },
   { value: 'light', label: 'Allégée' },
@@ -34,6 +41,8 @@ const QUALITY_OPTIONS = [
 
 export interface ReportTabProps {
   visit: Visit
+  /** Edits the visit (cover photo). */
+  update: VisitDraft['update']
   /** Saves the pending changes of the editor (called before generating). */
   flush: () => Promise<boolean>
 }
@@ -43,7 +52,7 @@ export interface ReportTabProps {
  * photo and image options, estimated size, points to check, then generation
  * of the Word report with its progress.
  */
-export function ReportTab({ visit, flush }: ReportTabProps) {
+export function ReportTab({ visit, update, flush }: ReportTabProps) {
   const today = useToday()
   const { data: photos = [] } = usePhotos(visit.id)
   const { data: plans = [] } = usePlans(visit.id)
@@ -58,30 +67,36 @@ export function ReportTab({ visit, flush }: ReportTabProps) {
   )
   const checks = useMemo(() => getReportChecks(visit, photos), [visit, photos])
   /** Sections actually generated: checked and not empty. */
-  const effectiveOptions: ReportOptions = {
-    ...options,
-    sections: Object.fromEntries(
-      REPORT_SECTION_KEYS.map((key) => [key, options.sections[key] && !contents[key].empty]),
-    ) as ReportOptions['sections'],
-  }
+  const effectiveSections = useMemo(
+    () =>
+      Object.fromEntries(
+        REPORT_SECTION_KEYS.map((key) => [key, options.sections[key] && !contents[key].empty]),
+      ) as ReportOptions['sections'],
+    [options.sections, contents],
+  )
+  const effectiveOptions: ReportOptions = { ...options, sections: effectiveSections }
   const estimate = useMemo(() => {
-    const pinned = new Set(visit.pins.map((p) => p.photoId))
-    const shownPhotos = effectiveOptions.sections.photos
-      ? photos.filter((p) => !options.onlyPinnedPhotos || pinned.has(p.id))
-      : []
+    // Images of the report as it would be generated (cover, notes, plans, photo sheet).
+    const { planIds, photoIds } = reportImageIds(
+      buildReportModel({
+        visit,
+        photos,
+        plans,
+        options: { ...options, sections: effectiveSections },
+        todayIso: today,
+        generatedAt: `${today}T00:00`,
+      }),
+    )
+    const shownPhotos = new Set(photoIds)
+    const shownPlans = new Set(planIds)
     return estimateReportSize({
-      photos: shownPhotos.map((p) => ({ bytes: p.blob.size, width: p.width, height: p.height })),
-      plans: effectiveOptions.sections.plans ? plans : [],
+      photos: photos
+        .filter((p) => shownPhotos.has(p.id))
+        .map((p) => ({ bytes: p.blob.size, width: p.width, height: p.height })),
+      plans: plans.filter((p) => shownPlans.has(p.id)),
       quality: options.quality,
     })
-  }, [
-    visit.pins,
-    photos,
-    plans,
-    options,
-    effectiveOptions.sections.photos,
-    effectiveOptions.sections.plans,
-  ])
+  }, [visit, photos, plans, options, effectiveSections, today])
   const nothingSelected = REPORT_SECTION_KEYS.every((key) => !effectiveOptions.sections[key])
   const running = state.status === 'running'
   const lastReport = reportDates[visit.id]
@@ -163,14 +178,22 @@ export function ReportTab({ visit, flush }: ReportTabProps) {
       </div>
 
       <aside className="space-y-6">
+        <CoverPhotoCard
+          photos={photos}
+          coverPhotoId={visit.coverPhotoId}
+          disabled={running}
+          onChange={(photoId) => {
+            update((v) => setCoverPhoto(v, photoId))
+          }}
+        />
         <SectionCard title="Options" headingId="report-options">
           <div className="space-y-4 text-sm">
             <div className="space-y-1.5">
               <p className="font-medium">Planche photos</p>
-              <SegmentedControl<'6' | '2'>
+              <SegmentedControl<PerPageValue>
                 label="Photos par page"
                 options={PER_PAGE_OPTIONS}
-                value={String(options.photosPerPage) as '6' | '2'}
+                value={String(options.photosPerPage) as PerPageValue}
                 onChange={(value) => {
                   setOptions((o) => ({ ...o, photosPerPage: Number(value) as PhotosPerPage }))
                 }}

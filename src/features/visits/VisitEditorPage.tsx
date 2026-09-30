@@ -169,7 +169,7 @@ export function VisitEditorPage({ visitId, tab }: VisitEditorPageProps) {
             ) : value === 'projects-costs' ? (
               <ProjectsCostsTab visit={draft} update={update} />
             ) : (
-              <ReportTab visit={draft} flush={flush} />
+              <ReportTab visit={draft} update={update} flush={flush} />
             )}
           </TabsContent>
         ))}

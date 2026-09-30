@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { usePhotos } from '@/features/photos/usePhotos'
 import type { VisitTabProps } from '@/features/visits/editorTypes'
 import { createId } from '@/lib/id'
 import { pluralize } from '@/lib/notify'
@@ -39,14 +40,19 @@ import {
   insertTemplate,
   moveNoteSection,
   removeNoteSection,
+  sectionPhotoIds,
+  setNoteSectionPhotos,
   sortedSections,
   updateNoteSection,
 } from './noteSectionOps'
+import { SectionPhotos } from './SectionPhotos'
 import { NOTE_TEMPLATES, templatesFor, WAREHOUSE_ZONES, type NoteTemplate } from './templates'
 
 /** "Notes par zone ou thème": free-text sections with templates. */
 export function NoteSectionsPanel({ visit, update }: VisitTabProps) {
   const sections = sortedSections(visit)
+  const { data: photos = [] } = usePhotos(visit.id)
+  const photoIds = new Set(photos.map((p) => p.id))
   const zonesListId = useId()
   // UI-only state (not saved): collapsed sections, section to focus, deletion to confirm.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
@@ -214,19 +220,32 @@ export function NoteSectionsPanel({ visit, update }: VisitTabProps) {
                 />
                 <div id={contentId} className="col-start-2 row-start-2 mt-2">
                   {isCollapsed ? (
-                    <CollapsedPreview content={section.content} />
-                  ) : (
-                    <DraftTextarea
-                      aria-label={`Notes : ${section.title}`}
-                      value={section.content}
-                      onValueChange={(content) => {
-                        update((v) => updateNoteSection(v, section.id, { content }), {
-                          coalesceKey: `section.${section.id}.content`,
-                        })
-                      }}
-                      placeholder="Constats, observations…"
-                      className="min-h-[6.5rem] leading-relaxed"
+                    <CollapsedPreview
+                      content={section.content}
+                      photoCount={sectionPhotoIds(section).filter((id) => photoIds.has(id)).length}
                     />
+                  ) : (
+                    <>
+                      <DraftTextarea
+                        aria-label={`Notes : ${section.title}`}
+                        value={section.content}
+                        onValueChange={(content) => {
+                          update((v) => updateNoteSection(v, section.id, { content }), {
+                            coalesceKey: `section.${section.id}.content`,
+                          })
+                        }}
+                        placeholder="Constats, observations…"
+                        className="min-h-[6.5rem] leading-relaxed"
+                      />
+                      <SectionPhotos
+                        sectionTitle={section.title}
+                        photos={photos}
+                        linkedIds={sectionPhotoIds(section)}
+                        onChange={(ids) => {
+                          update((v) => setNoteSectionPhotos(v, section.id, ids))
+                        }}
+                      />
+                    </>
                   )}
                 </div>
                 <div className="col-start-3 row-start-1 flex">
@@ -251,7 +270,8 @@ export function NoteSectionsPanel({ visit, update }: VisitTabProps) {
                     label={`Supprimer ${section.title}`}
                     className="hover:text-danger"
                     onClick={() => {
-                      if (section.content.trim()) setToDelete(section)
+                      if (section.content.trim() || sectionPhotoIds(section).length)
+                        setToDelete(section)
                       else deleteSection(section)
                     }}
                   />
@@ -296,7 +316,7 @@ export function NoteSectionsPanel({ visit, update }: VisitTabProps) {
   )
 }
 
-function CollapsedPreview({ content }: { content: string }) {
+function CollapsedPreview({ content, photoCount }: { content: string; photoCount: number }) {
   const firstLine = content
     .split('\n')
     .find((line) => line.trim())
@@ -305,6 +325,7 @@ function CollapsedPreview({ content }: { content: string }) {
     <p className="flex gap-2 text-sm text-muted-foreground">
       <span className="truncate">{firstLine ?? 'Section vide'}</span>
       <span className="shrink-0">· {pluralize(content.length, 'caractère')}</span>
+      {photoCount > 0 && <span className="shrink-0">· {pluralize(photoCount, 'photo')}</span>}
     </p>
   )
 }
